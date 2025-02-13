@@ -13,7 +13,7 @@ let package = Package(
         // Products define the executables and libraries a package produces, making them visible to other packages.
         .library(
             name: "swift-indiclient",
-            targets: ["swift-indiclient"]),
+            targets: ["INDIClient"]),
     ],
     dependencies: [
         .package(url: "https://github.com/apple/swift-collections.git", from: "1.1.4")
