@@ -387,7 +387,7 @@ extension INDIWebManagerClient {
         var result: Bool = false
         var replyData: Data? = nil
         var response: URLResponse
-        var request = createURLRequest(httpProtocol: "http", method: method, api: api, sendData: sendData)
+        let request = createURLRequest(httpProtocol: "http", method: method, api: api, sendData: sendData)
         
         // Accessing the INDI Web Manager.
         (replyData, response) = try await URLSession.shared.data(for: request)

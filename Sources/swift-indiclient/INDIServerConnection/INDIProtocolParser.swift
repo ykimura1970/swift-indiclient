@@ -44,7 +44,7 @@ actor INDIProtocolParser {
                     
                     if !_tagNames.isEmpty && tagString == "</\(_tagNames.last!)>" {
                         
-                        _tagNames.popLast()
+                        _ = _tagNames.popLast()
                         if _tagNames.isEmpty {
                             elements.append(_root!)
                             _root = nil
