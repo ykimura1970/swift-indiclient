@@ -30,6 +30,12 @@ final public class INDILightProperty: INDIProperty, @unchecked Sendable {
         }
     }
     
+    var vectorProperty: INDILightVectorProperty? {
+        get {
+            parent as? INDILightVectorProperty
+        }
+    }
+    
     // MARK: - Protocol Method
     public override func copy(with zone: NSZone? = nil) -> Any {
         INDILightProperty(elementName: self.elementName, elementLabel: self.elementLabel, lightState: self.lightState)

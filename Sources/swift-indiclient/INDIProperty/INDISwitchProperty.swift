@@ -36,6 +36,12 @@ final public class INDISwitchProperty: INDIProperty, @unchecked Sendable {
         }
     }
     
+    private var vectorProperty: INDISwitchVectorProperty? {
+        get {
+            parent as? INDISwitchVectorProperty
+        }
+    }
+    
     // MARK: - Protocol Method
     public override func copy(with zone: NSZone? = nil) -> Any {
         return INDISwitchProperty(elementName: self.elementName, elementLabel: self.elementLabel, switchState: self.switchState)

@@ -23,6 +23,13 @@ final public class INDITextProperty: INDIProperty, @unchecked Sendable {
         self.init(elementName: "", elementLabel: "", text: "")
     }
     
+    // MARK: - Computed Property
+    public var vectorProperty: INDITextVectorProperty? {
+        get {
+            parent as? INDITextVectorProperty
+        }
+    }
+    
     // MARK: - Protocol Method
     public override func copy(with zone: NSZone? = nil) -> Any {
         return INDITextProperty(elementName: self.elementName, elementLabel: self.elementLabel, text: self.text)

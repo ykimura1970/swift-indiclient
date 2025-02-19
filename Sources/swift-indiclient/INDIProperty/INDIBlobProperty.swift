@@ -28,6 +28,13 @@ final public class INDIBlobProperty: INDIProperty, @unchecked Sendable {
         self.init(elementName: "", elementLabel: "", format: "", blob: Data(), blobLength: 0, size: 0)
     }
     
+    // MARK: - Computed Property
+    public var vectorProperty: INDIBlobVectorProperty? {
+        get {
+            parent as? INDIBlobVectorProperty
+        }
+    }
+    
     // MARK: - Override Method
     public override func copy(with zone: NSZone? = nil) -> Any {
         INDIBlobProperty(elementName: self.elementName, elementLabel: self.elementLabel, format: self.format, blob: self.blob, blobLength: self.blobLength, size: self.size)

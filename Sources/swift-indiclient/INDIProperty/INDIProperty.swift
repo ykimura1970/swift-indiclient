@@ -11,11 +11,13 @@ public class INDIProperty: NSCopying, Identifiable, @unchecked Sendable {
     // MARK: - Fundamental Property
     private(set) public var elementName: String
     private(set) public var elementLabel: String
+    internal var parent: INDIVectorProperty?
     
     // MARK: - Initializer
-    public init(elementName: String, elementLabel: String) {
+    public init(elementName: String, elementLabel: String, parent: INDIVectorProperty? = nil) {
         self.elementName = elementName
         self.elementLabel = elementLabel
+        self.parent = parent
     }
     
     public convenience init() {
@@ -28,6 +30,10 @@ public class INDIProperty: NSCopying, Identifiable, @unchecked Sendable {
     }
     
     // MARK: - Fundamental Method
+    public func setParent(parent: INDIVectorProperty) {
+        self.parent = parent
+    }
+    
     public func setElementName(_ name: String) {
         self.elementName = name
     }

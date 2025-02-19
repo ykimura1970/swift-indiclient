@@ -38,6 +38,12 @@ final public class INDINumberProperty: INDIProperty, @unchecked Sendable {
         }
     }
     
+    public var vectorProperty: INDINumberVectorProperty? {
+        get {
+            parent as? INDINumberVectorProperty
+        }
+    }
+    
     // MARK: - Protocol Method
     public override func copy(with zone: NSZone? = nil) -> Any {
         INDINumberProperty(elementName: self.elementName, elementLabel: self.elementLabel, format: self.format, min: self.min, max: self.max, step: self.step, value: self.value)

@@ -20,7 +20,7 @@ public class INDIVectorProperty: Identifiable, @unchecked Sendable {
     private(set) public var propertyType: INDIPropertyType
 
     // MARK: - Initializer
-    public init(deviceName: String, propertyName: String, propertyLabel: String, groupName: String, propertyPermission: INDIPropertyPermission, timeout: Double, propertyState: INDIPropertyState, timestamp: String, propertyType: INDIPropertyType = .INDIUnknown) {
+    public init(deviceName: String, propertyName: String, propertyLabel: String, groupName: String, propertyPermission: INDIPropertyPermission, timeout: Double, propertyState: INDIPropertyState, timestamp: String, parent: INDIVectorProperty? = nil, propertyType: INDIPropertyType = .INDIUnknown) {
         self.deviceName = deviceName
         self.propertyName = propertyName
         self.propertyLabel = propertyLabel
