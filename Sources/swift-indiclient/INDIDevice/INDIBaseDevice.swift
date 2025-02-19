@@ -214,6 +214,7 @@ extension INDIBaseDevice {
                 if element.tagName != "defNumber" { continue }
                 
                 let property = INDINumberProperty()
+                property.setParent(parent: typedVectorProperty)
                 
                 if let elementName = element.attributes["name"] {
                     property.setElementName(elementName)
@@ -252,6 +253,7 @@ extension INDIBaseDevice {
                 if element.tagName != "defSwitch" { continue }
                 
                 let property = INDISwitchProperty()
+                property.setParent(parent: typedVectorProperty)
                 
                 if let elementName = element.attributes["name"] {
                     property.setElementName(elementName)
@@ -274,6 +276,7 @@ extension INDIBaseDevice {
                 if element.tagName != "defText" { continue }
                 
                 let property = INDITextProperty()
+                property.setParent(parent: typedVectorProperty)
                 
                 if let elementName = element.attributes["name"] {
                     property.setElementName(elementName)
@@ -296,6 +299,7 @@ extension INDIBaseDevice {
                 if element.tagName != "defLight" { continue }
                 
                 let property = INDILightProperty()
+                property.setParent(parent: typedVectorProperty)
                 
                 if let elementName = element.attributes["name"] {
                     property.setElementName(elementName)
@@ -318,6 +322,7 @@ extension INDIBaseDevice {
                 if element.tagName != "defBLOB" { continue }
                 
                 let property = INDIBlobProperty()
+                property.setParent(parent: typedVectorProperty)
                 
                 if let elementName = element.attributes["name"] {
                     property.setElementName(elementName)
