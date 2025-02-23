@@ -7,6 +7,7 @@
 
 import Foundation
 import Observation
+import os
 
 @Observable
 final public class INDINumberProperty: INDIProperty, @unchecked Sendable {
@@ -16,6 +17,7 @@ final public class INDINumberProperty: INDIProperty, @unchecked Sendable {
     @ObservationIgnored private(set) public var max: Double
     @ObservationIgnored private(set) public var step: Double
     private(set) public var value: Double
+    private let lock: OSAllocatedUnfairLock = OSAllocatedUnfairLock()
     
     // MARK: - Initializer
     public init(elementName: String, elementLabel: String, format: String, min: Double, max: Double, step: Double, value: Double) {
@@ -72,7 +74,9 @@ final public class INDINumberProperty: INDIProperty, @unchecked Sendable {
     }
     
     public func setValue(_ value: Double) {
+        lock.lock()
         self.value = value
+        lock.unlock()
     }
     
     // MARK: - Override Method
@@ -81,7 +85,9 @@ final public class INDINumberProperty: INDIProperty, @unchecked Sendable {
         min = 0.0
         max = 0.0
         step = 0.0
+        lock.lock()
         value = 0.0
+        lock.unlock()
         super.clear()
     }
 }

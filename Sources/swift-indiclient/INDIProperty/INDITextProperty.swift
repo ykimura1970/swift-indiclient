@@ -7,11 +7,13 @@
 
 import Foundation
 import Observation
+import os
 
 @Observable
 final public class INDITextProperty: INDIProperty, @unchecked Sendable {
     // MARK: - Original Property
     private(set) public var text: String
+    private let lock: OSAllocatedUnfairLock = OSAllocatedUnfairLock()
     
     // MARK: - Initializer
     public init(elementName: String, elementLabel: String, text: String) {
@@ -37,12 +39,16 @@ final public class INDITextProperty: INDIProperty, @unchecked Sendable {
     
     // MARK: - Original Method
     public func setText(_ text: String) {
+        lock.lock()
         self.text = text
+        lock.unlock()
     }
     
     // MARK: - Override Method
     public override func clear() {
+        lock.lock()
         text = ""
+        lock.unlock()
         super.clear()
     }
 }
