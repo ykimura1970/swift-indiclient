@@ -41,7 +41,7 @@ public class INDIVectorPropertyTemplate<T: INDIProperty>: INDIVectorProperty, It
         }
     }
     
-    public var propertyISEmpty: Bool {
+    public var propertyIsEmpty: Bool {
         get {
             properties.isEmpty
         }

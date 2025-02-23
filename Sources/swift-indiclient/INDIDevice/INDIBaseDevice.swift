@@ -205,6 +205,7 @@ extension INDIBaseDevice {
         }
         
         var vectorProperty: INDIVectorProperty
+        var isPropertyEmpty: Bool = false
         
         switch tagType {
         case .INDINumber:
@@ -245,6 +246,7 @@ extension INDIBaseDevice {
                     typedVectorProperty.appendProperty(property: property)
                 }
             }
+            isPropertyEmpty = typedVectorProperty.propertyIsEmpty
             vectorProperty = typedVectorProperty
         case .INDISwitch:
             let typedVectorProperty = INDISwitchVectorProperty()
@@ -268,6 +270,7 @@ extension INDIBaseDevice {
                     typedVectorProperty.appendProperty(property: property)
                 }
             }
+            isPropertyEmpty = typedVectorProperty.propertyIsEmpty
             vectorProperty = typedVectorProperty
         case .INDIText:
             let typedVectorProperty = INDITextVectorProperty()
@@ -291,6 +294,7 @@ extension INDIBaseDevice {
                     typedVectorProperty.appendProperty(property: property)
                 }
             }
+            isPropertyEmpty = typedVectorProperty.propertyIsEmpty
             vectorProperty = typedVectorProperty
         case .INDILight:
             let typedVectorProperty = INDILightVectorProperty()
@@ -314,6 +318,7 @@ extension INDIBaseDevice {
                     typedVectorProperty.appendProperty(property: property)
                 }
             }
+            isPropertyEmpty = typedVectorProperty.propertyIsEmpty
             vectorProperty = typedVectorProperty
         case .INDIBlob:
             let typedVectorProperty = INDIBlobVectorProperty()
@@ -339,9 +344,15 @@ extension INDIBaseDevice {
                     typedVectorProperty.appendProperty(property: property)
                 }
             }
+            isPropertyEmpty = typedVectorProperty.propertyIsEmpty
             vectorProperty = typedVectorProperty
         default:
             return -1
+        }
+        
+        if isPropertyEmpty {
+            print("\(propertyName): \(tagName) with no valid members.")
+            return 0
         }
         
         vectorProperty.setDeviceName(deviceName)
