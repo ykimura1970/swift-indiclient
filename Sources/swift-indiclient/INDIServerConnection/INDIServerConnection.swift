@@ -149,7 +149,6 @@ extension INDIServerConnection {
         })
         
         if let data = result.data {
-            
             // Parsing the INDI Protocol.
             let elements = await _indiParser.parse(data: data)
             
