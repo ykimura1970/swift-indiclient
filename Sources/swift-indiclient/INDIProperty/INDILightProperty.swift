@@ -13,7 +13,7 @@ import os
 final public class INDILightProperty: INDIProperty, @unchecked Sendable {
     // MARK: - Original Property
     private(set) public var lightState: INDIPropertyState
-    private let lock: OSAllocatedUnfairLock = OSAllocatedUnfairLock()
+    @ObservationIgnored private let lock = OSAllocatedUnfairLock()
     
     // MARK: - Initializer
     public init(elementName: String, elementLabel: String, lightState: INDIPropertyState) {
@@ -45,24 +45,24 @@ final public class INDILightProperty: INDIProperty, @unchecked Sendable {
     
     // MARK: - Original Method
     public func setLightState(lightState: INDIPropertyState) {
-        lock.lock()
-        self.lightState = lightState
-        lock.unlock()
+        lock.withLock({
+            self.lightState = lightState
+        })
     }
     
     public func setLightState(from string: String) -> Bool {
         guard let lightState = INDIPropertyState.propertyState(from: string) else { return false }
-        lock.lock()
-        self.lightState = lightState
-        lock.unlock()
+        lock.withLock({
+            self.lightState = lightState
+        })
         return true
     }
     
     // MARK: - Override Method
     public override func clear() {
-        lock.lock()
-        lightState = .Idle
-        lock.unlock()
+        lock.withLock({
+            lightState = .Idle
+        })
         super.clear()
     }
 }

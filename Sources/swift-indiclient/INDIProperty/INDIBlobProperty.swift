@@ -7,6 +7,7 @@
 
 import Foundation
 import Observation
+import os
 
 final public class INDIBlobProperty: INDIProperty, @unchecked Sendable {
     // MARK: - Original Property
@@ -14,6 +15,7 @@ final public class INDIBlobProperty: INDIProperty, @unchecked Sendable {
     private(set) public var blob: Data
     private(set) public var blobLength: Int
     private(set) public var size: Int
+    @ObservationIgnored private let lock = OSAllocatedUnfairLock()
     
     // MARK: - Initializer
     public init(elementName: String, elementLabel: String, format: String, blob: Data, blobLength: Int, size: Int) {
@@ -46,7 +48,9 @@ final public class INDIBlobProperty: INDIProperty, @unchecked Sendable {
     }
     
     public func setBlob(blob: Data) {
-        self.blob = blob
+        lock.withLock({
+            self.blob = blob
+        })
     }
     
     public func setBlobLength(_ blobLength: Int) {
@@ -60,7 +64,9 @@ final public class INDIBlobProperty: INDIProperty, @unchecked Sendable {
     // MARK: - Override Method
     public override func clear() {
         format = ""
-        blob = Data()
+        lock.withLock({
+            blob = Data()
+        })
         blobLength = 0
         size = 0
         super.clear()

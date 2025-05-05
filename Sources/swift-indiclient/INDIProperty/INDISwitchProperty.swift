@@ -13,7 +13,7 @@ import os
 final public class INDISwitchProperty: INDIProperty, @unchecked Sendable {
     // MARK: - Original Property
     private(set) public var switchState: INDISwitchState
-    private let lock: OSAllocatedUnfairLock = OSAllocatedUnfairLock()
+    @ObservationIgnored private let lock = OSAllocatedUnfairLock()
     
     // MARK: - Initializer
     public init(elementName: String, elementLabel: String, switchState: INDISwitchState) {
@@ -51,30 +51,30 @@ final public class INDISwitchProperty: INDIProperty, @unchecked Sendable {
     
     // MARK: - Original Method
     public func setSwitchState(_ switchState: INDISwitchState) {
-        lock.lock()
-        self.switchState = switchState
-        lock.unlock()
+        lock.withLock({
+            self.switchState = switchState
+        })
     }
     
     public func setSwitchState(from string: String) -> Bool {
         guard let switchState = INDISwitchState.switchState(from: string) else { return false }
-        lock.lock()
-        self.switchState = switchState
-        lock.unlock()
+        lock.withLock({
+            self.switchState = switchState
+        })
         return true
     }
     
     public func setSwitchState(from bool: Bool) {
-        lock.lock()
-        switchState = INDISwitchState.switchState(from: bool)
-        lock.unlock()
+        lock.withLock({
+            switchState = INDISwitchState.switchState(from: bool)
+        })
     }
     
     // MARK: - Override Method
     public override func clear() {
-        lock.lock()
-        switchState = .Off
-        lock.unlock()
+        lock.withLock({
+            switchState = .Off
+        })
         super.clear()
     }
 }

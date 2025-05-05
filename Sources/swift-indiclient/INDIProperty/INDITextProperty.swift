@@ -13,7 +13,7 @@ import os
 final public class INDITextProperty: INDIProperty, @unchecked Sendable {
     // MARK: - Original Property
     private(set) public var text: String
-    private let lock: OSAllocatedUnfairLock = OSAllocatedUnfairLock()
+    @ObservationIgnored private let lock = OSAllocatedUnfairLock()
     
     // MARK: - Initializer
     public init(elementName: String, elementLabel: String, text: String) {
@@ -39,16 +39,16 @@ final public class INDITextProperty: INDIProperty, @unchecked Sendable {
     
     // MARK: - Original Method
     public func setText(_ text: String) {
-        lock.lock()
-        self.text = text
-        lock.unlock()
+        lock.withLock({
+            self.text = text
+        })
     }
     
     // MARK: - Override Method
     public override func clear() {
-        lock.lock()
-        text = ""
-        lock.unlock()
+        lock.withLock({
+            text = ""
+        })
         super.clear()
     }
 }
