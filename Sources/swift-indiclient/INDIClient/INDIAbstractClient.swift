@@ -6,313 +6,435 @@
 //
 
 import Foundation
+internal import Atomics
 
-public protocol INDIAbstractClient: Actor, INDIServerConnectionDelegate {
+open class INDIAbstractClient: INDIBaseMediatorDelegate {
     // MARK: - Delegate Property
-    var delegate: INDIClientMediatorDelegate? { get set }
+    public var delegate: INDIBaseMediatorDelegate?
     
     // MARK: - Fundamental Property
-    var serverConnection: INDIServerConnection { get set }
-    var serverConnected: Bool { get set }
-    var verbose: Bool { get set }
-    var baseDevices: [INDIBaseDevice] { get set }
-    var watchDevices: [String] { get set }
-    var blobHandling: INDIBlobHandling { get set }
+    internal(set) public var hostname: String = "localhost"
+    internal(set) public var port: Int = 7624
+    internal var serverConnected: ManagedAtomic<Bool> = ManagedAtomic(false)
+    internal var verbose: Bool = false
+    internal var timeout: Float = 3
+    internal var watchDevice: INDIWatchDeviceProperty = INDIWatchDeviceProperty()
+    internal var blobModes: [INDIBlobMode] = []
+    
+    // MARK: - Initializer
+    public init() { }
     
     // MARK: - Computed Property
-    var isServerConnected: Bool { get }
-    var isVerbose: Bool { get }
+    public var isServerConnected: Bool {
+        get {
+            self.serverConnected.load(ordering: .relaxed)
+        }
+    }
+    
+    public var isVerbose: Bool {
+        get {
+            self.verbose
+        }
+    }
     
     // MARK: - Fundamental Method
-    /// Set the class instance to which INDIClientMediatorDelegate is applied.
+    public func setServer(hostname: String, port: Int) {
+        self.hostname = hostname
+        self.port = port
+    }
+    
+    public func setConnectionTimeout(seconds: Float) {
+        self.timeout = seconds
+    }
+    
+    public func setVerbose(enable: Bool) {
+        self.verbose = enable
+    }
+    
+    open func connectServer() -> Bool { true }
+    
+    open func disconnectServer(exitCode: Int = 0) -> Bool { true }
+    
+    open func sendData(command: INDIProtocolElement) -> Bool { true }
+    
+    /// New universal message are sent from INDI server without a specific device. It is addressed to the client overall.
     /// - Parameters:
-    ///  - delegate: The class instance to which INDIClientMediatorDelegate is applied.
-    func setDelegate(delegate: (any INDIClientMediatorDelegate)?)
+    ///  - message: Content of message.
+    open func newUniversalMessage(message: String) { }
     
-    /// Set verbose mode.
+    /// pingReply are sent by the server on response to pingReply.
+    open func newPingReply(uid: String) {
+        print("Ping reply \(uid).")
+    }
+    
+    /// Connect INDI driver.
     /// - Parameters:
-    ///  - enable: If true, enable FULL verbose output. Any XML message output, including BLOBs, are printed on standard output. Only use this for debugging purpopse.
-    func setVerbose(enable: Bool)
+    ///  - deviceName:  Name of the device to connect.
+    public func connectDevice(deviceName: String) {
+        setDriverConnection(deviceName: deviceName, status: true)
+    }
     
-    /// Add a device to watch list.
+    /// Disconnect INDI driver.
     /// - Parameters:
-    ///  - devieName: device name of watch.
-    func appendWatchDevice(deviceName: String)
+    ///  - deviceName: Name of the device to disconnect.
+    public func disconnectDevice(deviceName: String) {
+        setDriverConnection(deviceName: deviceName, status: false)
+    }
     
-    /// Add a device.
+    /// Add a device to the watch list.
     /// - Parameters:
-    ///  - baseDevice: INDIBaseDevice instance.
-    func appendBaseDevice(baseDevice: INDIBaseDevice)
+    ///  - deviceName: Device to watch for.
+    public func watchDevice(deviceName: String) {
+        watchDevice.watchDevice(deviceName: deviceName)
+    }
     
-    /// Get  base device of the specified device name.
+    /// Add a property to the watch list. When communicating with INDI server.
     /// - Parameters:
-    ///  - deviceName: device name.
-    /// - Returns: An instance of INDIBaseDevice for the given device name.
-    func getBaseDevice(deviceName: String) -> INDIBaseDevice?
+    ///  - propertyName: Property to watch for.
+    public func watchDevice(deviceName: String, propertyName: String) {
+        watchDevice.watchProperty(deviceName: deviceName, propertyName: propertyName)
+    }
     
-    /// Clear device and watch devices.
-    func clear()
-    
-    // MARK: - Server Method
-    /// Set the server connection object.
+    /// Get device.
     /// - Parameters:
-    ///  - serverConnection: INDIServerConnection instance.
-    func setServerConnection(serverConnection: INDIServerConnection)
+    ///  - deviceName: Name of device to search for in the list of devices owned by INDI server.
+    /// - Returns: If deviceName exists, it returns an instance of the device. Otherwise, it returns nil.
+    public func getDevice(deviceName: String) -> INDIBaseDevice? {
+        watchDevice.getDeviceByName(deviceName)
+    }
     
-    /// Connect to INDI Server.
-    func connectServer() async -> Bool
+    /// Get all devices.
+    /// - Returns: a array of all devies created in the client.
+    public func getDevices() -> [INDIBaseDevice] {
+        watchDevice.devices
+    }
     
-    /// Disconnect from INDI Server. Any decides previously created will be  deleted and memory cleared.
-    func disconnectServer() async 
+    /// Get list of devices that belong to a particular INDIBaseDevice.DriverInterface "DRIVER_INTERFACE" class.
+    /// - Parameters:
+    ///  - driverInterface: ORed DRIVER_INTERFACE values to select the desired class of devices.
+    /// - Returns: List of devices.
+    public func getDevices(driverInterface: Int) -> [INDIBaseDevice] {
+        watchDevice.devices.filter({ ($0.getDriverInterface() & driverInterface) > 0 }).map({ $0 })
+    }
     
     /// Set binary large object policy mode.
     /// - Parameters:
-    ///  - deviceName: device name.
-    ///  - blobHandling: binary large object policy.
-    func setBlobMode(deviceName: String, blobHandling: INDIBlobHandling) async -> Bool
+    ///  - deviceName: Name of device, required.
+    ///  - propertyName: name of property, optional.
+    ///  - blobHandling: INDIBlobHandling policy.
+    public func setBLOBMode(deviceName: String, propertyName: String, blobHandling: INDIBlobHandling) {
+        if deviceName.isEmpty { return }
+        
+        let index = findIndexBLOBMode(deviceName: deviceName, propertyName: propertyName)
+        
+        if index < 0 {
+            blobModes.append(INDIBlobMode(device: deviceName, propertyName: propertyName, blobHandling: blobHandling))
+        } else {
+            if blobModes[index].blobHandling == blobHandling { return }
+            blobModes[index].blobHandling = blobHandling
+        }
+        
+        sendEnableBLOB(deviceName: deviceName, propertyName: propertyName, blobHandling: blobHandling)
+    }
     
-    /// Get binary large object policy if set previously by setBlobMode.
-    /// - Returns: binary large object policy.
-    func getBlobMode() -> INDIBlobHandling
-    
-    /// Send Data.
+    /// Get binary large object policy mode if set previously by setBLOBMode.
     /// - Parameters:
-    ///  - data: send data.
-    /// - Returns: The number of bytes sent if the send was successful, otherwise 0.
-    func sendData(data: Data) async -> Int
+    ///  - deviceName: Name of device.
+    ///  - propertyName: Property name, can be nil to return overall device policy if it exists.
+    /// - Returns: BLOB policy, if not found, it always returns also.
+    public func getBLOBMode(deviceName: String, propertyName: String = "") -> INDIBlobHandling {
+        var blobHandling: INDIBlobHandling = .Also
+        
+        if let blobMode = findBLOBMode(deviceName: deviceName, propertyName: propertyName) {
+            blobHandling = blobMode.blobHandling
+        }
+        
+        return blobHandling
+    }
     
-    func newUniversalMessage(message: String)
+    public func findBLOBMode(deviceName: String, propertyName: String) -> INDIBlobMode? {
+        self.blobModes.first(where: { $0.device == deviceName && (propertyName.isEmpty || $0.propertyName == propertyName) })
+    }
+    
+    public func findIndexBLOBMode(deviceName: String, propertyName: String) -> Int {
+        self.blobModes.firstIndex(where: { $0.device == deviceName && (propertyName.isEmpty || $0.propertyName == propertyName) }) ?? -1
+    }
+    
+    public func clear() {
+        self.watchDevice.clearDevices()
+        self.blobModes.removeAll()
+    }
 }
 
-// MARK: - Default Implement
+// MARK: - Send Command Method
 public extension INDIAbstractClient {
-    var isServerConnected: Bool {
-        serverConnected
-    }
-    
-    var isVerbose: Bool {
-        verbose
-    }
-    
-    func setDelegate(delegate: (any INDIClientMediatorDelegate)?) {
-        self.delegate = delegate
-    }
-    
-    func setVerbose(enable: Bool) {
-        verbose = enable
-    }
-    
-    func appendWatchDevice(deviceName: String) {
-        watchDevices.append(deviceName)
-    }
-    
-    func appendBaseDevice(baseDevice: INDIBaseDevice) {
-        baseDevices.append(baseDevice)
-    }
-    
-    func getBaseDevice(deviceName: String) -> INDIBaseDevice? {
-        baseDevices.first(where: { $0.isDeviceNameMatch(deviceName) })
-    }
-    
-    func clear() {
-        baseDevices.removeAll()
-        watchDevices.removeAll()
-        blobHandling = .Never
-    }
-    
-    func setServerConnection(serverConnection: INDIServerConnection) {
-        self.serverConnection = serverConnection
-    }
-    
-    func setBlobMode(deviceName: String, blobHandling: INDIBlobHandling) async -> Bool {
-        self.blobHandling = blobHandling
-        
-        let attribute = XMLElement(kind: .attribute)
-        attribute.name = "device"
-        attribute.stringValue = deviceName
-        
-        let element = XMLElement(name: "enableBLOB")
-        element.stringValue = blobHandling.toString()
-        element.addAttribute(attribute)
-        
-        return await sendData(data: element.xmlString.data(using: .ascii)!) > 0
-    }
-    
-    func getBlobMode() -> INDIBlobHandling {
-        blobHandling
-    }
-    
-    func sendData(data: Data) async -> Int {
-        return await serverConnection.sendData(data: data)
-    }
-    
-    func newUniversalMessage(message: String) { }
-    
-    func onConnected(sender: INDIServerConnection) {
-        serverConnected = true
-    }
-    
-    func onDisconnected(sender: INDIServerConnection) {
-        serverConnected = false
-    }
-    
-    nonisolated func processINDICommand(sender: INDIServerConnection, xmlCommand: INDIProtocolElement) async -> Int {
-        let tagName = xmlCommand.tagName
-        
-        // Ignore echoed newXXX.
-        if tagName.hasPrefix("new") { return 0 }
-        
-        if tagName == "message" {
-            return await messageCmd(xmlCommand: xmlCommand)
+    /// Send new vector property command to server.
+    func sendNewVectorProperty(vectorProperty: INDIVectorProperty) -> Bool {
+        switch vectorProperty {
+        case is INDINumberVectorProperty:
+            return sendNewNumberVectorProperty(vectorProperty: vectorProperty as! INDINumberVectorProperty)
+        case is INDISwitchVectorProperty:
+            return sendNewSwitchVectorProperty(vectorProperty: vectorProperty as! INDISwitchVectorProperty)
+        case is INDITextVectorProperty:
+            return sendNewTextVectorProperty(vectorProperty: vectorProperty as! INDITextVectorProperty)
+        case is INDILightVectorProperty:
+            print("Light type is not supported to send.")
+            return false
+        case is INDIBlobVectorProperty:
+            return sendNewBlobVectorProperty(vectorProperty: vectorProperty as! INDIBlobVectorProperty)
+        default:
+            print("Unknown type of proeprty to send.")
+            return false
         }
-        
-        if tagName == "delProperty" {
-            return await delVectorPropertyCmd(xmlCommand: xmlCommand)
-        }
-        
-        if tagName == "getProperpties" {
-            return INDIErrorType.PropertyDuplicated.rawValue
-        }
-        
-        // If BlobMode is Only, we ignore everything else not related to blobs.
-        if await blobHandling == .Only && tagName != "defBLOBVector" && tagName != "setBLOBVector" {
-            return 0
-        }
-        
-        if let baseDevice = await findDevice(xmlCommand: xmlCommand, create: true) {
-            if tagName.hasPrefix("def") {
-                return await baseDevice.buildVectorProperty(xmlCommand: xmlCommand)
-            } else if tagName.hasPrefix("set") {
-                return await baseDevice.updateVectorProperty(xmlCommand: xmlCommand)
-            }
-        }
-        
-        return INDIErrorType.DeviceNotFound.rawValue
-    }
-}
-
-// MARK: - Helper Method
-extension INDIAbstractClient {
-    /// Find a device, and if it does not exists, if create is set true.
-    /// - Parameters:
-    ///  - xmlCommand: XML element.
-    ///  - create: If INDIBaseDevice does not exists, create a new one if create is true, do nothing if false.
-    /// - Returns: An existing or new ly created INDIBaseDevice instance, otherwise nil.
-    internal func findDevice(xmlCommand: INDIProtocolElement, create: Bool) async -> INDIBaseDevice? {
-        guard let deviceName = xmlCommand.attributes["device"] else {
-            print("No device attribute found in element \(xmlCommand.tagName).")
-            return nil
-        }
-        
-        if deviceName.isEmpty {
-            print("Device name is empty! \(xmlCommand.tagName).")
-            return nil
-        }
-        
-        if let baseDevice = getBaseDevice(deviceName: deviceName) {
-            return baseDevice
-        }
-        
-        // Not found, create if true.
-        if create {
-            let baseDevice = INDIBaseDevice(deviceName: deviceName)
-            appendBaseDevice(baseDevice: baseDevice)
-            delegate?.newDevice(sender: self, baseDevice: baseDevice)
-            return baseDevice
-        }
-        
-        print("INDI <\(xmlCommand.tagName)> No such device \(deviceName).")
-        return nil
     }
     
-    internal func delVectorPropertyCmd(xmlCommand: INDIProtocolElement) async -> Int {
-        guard let deviceName = xmlCommand.attributes["device"], let baseDevice = getBaseDevice(deviceName: deviceName) else {
-            return INDIErrorType.DeviceNotFound.rawValue
-        }
+    func sendNewNumberVectorProperty(deviceName: String, propertyName: String, elementName: String, value: Double) -> Bool {
+        guard let numberVectorProperty = watchDevice.getDeviceByName(deviceName)?.getNumberVectorProperty(propertyName: propertyName) else { return false }
         
-        await baseDevice.checkMessage(xmlCommand: xmlCommand)
+        let newNumberVectorProperty = numberVectorProperty.copy() as! INDINumberVectorProperty
+        guard let numberProperty = newNumberVectorProperty.findPropertyByElementName(elementName) else { return false }
+        numberProperty.setValue(value)
         
-        guard let propertyName = xmlCommand.attributes["name"] else {
-            return removeDevice(deviceName: deviceName)
-        }
-        
-        if let vectorProperty = await baseDevice.getVectorProperty(propertyName: propertyName) {
-            if serverConnected {
-                await baseDevice.delegate?.removeVectorProperty(sender: baseDevice, vectorProperty: vectorProperty)
-            }
-            return await baseDevice.removeVectorProperty(propertyName: propertyName)
-        }
-        
-        // Silently ignore BLOBHandling Only clients.
-        if blobHandling == .Only {
-            return 0
-        }
-        
-        print("Cannot delete property \(propertyName) as it is not defined yet. Check driver.")
-        return -1
+        return sendNewNumberVectorProperty(vectorProperty: numberVectorProperty)
     }
     
-    internal func removeDevice(deviceName: String) -> Int {
-        if let baseDevice = baseDevices.first(where: { $0.isDeviceNameMatch(deviceName) }) {
-            delegate?.removeDevice(sender: self, baseDevice: baseDevice)
-            baseDevices.removeAll(where: { $0 === baseDevice })
-            watchDevices.removeAll(where: { $0 == deviceName })
-            return 0
-        }
-        
-        print("Device \(deviceName) not found.")
-        return INDIErrorType.DeviceNotFound.rawValue
+    func sendNewNumberVectorProperty(vectorProperty: INDINumberVectorProperty) -> Bool {
+        return sendData(command: vectorProperty.createNewCommand())
     }
     
-    nonisolated internal func messageCmd(xmlCommand: INDIProtocolElement) async -> Int {
-        if let baseDevice = await findDevice(xmlCommand: xmlCommand, create: false) {
-            await baseDevice.checkMessage(xmlCommand: xmlCommand)
+    func sendNewSwitchVectorProperty(deviceName: String, propertyName: String, elementName: String) -> Bool {
+        guard let switchVectorProperty = watchDevice.getDeviceByName(deviceName)?.getSwitchVectorProperty(propertyName: propertyName) else { return false }
+        
+        let newSwitchVectorProperty = switchVectorProperty.copy() as! INDISwitchVectorProperty
+        guard let switchProperty = newSwitchVectorProperty.findPropertyByElementName(elementName) else { return false }
+        switchProperty.setSwitchState(.On)
+        
+        return sendNewSwitchVectorProperty(vectorProperty: newSwitchVectorProperty)
+    }
+    
+    func sendNewSwitchVectorProperty(vectorProperty: INDISwitchVectorProperty) -> Bool {
+        return sendData(command: vectorProperty.createNewCommand())
+    }
+    
+    func sendNewTextVectorProperty(deviceName: String, propertyName: String, elementName: String, text: String) -> Bool {
+        guard let textVectorProperty = watchDevice.getDeviceByName(deviceName)?.getTextVectorProperty(propertyName: propertyName) else { return false }
+        
+        let newTextVectorProperty = textVectorProperty.copy() as! INDITextVectorProperty
+        guard let textProperty = newTextVectorProperty.findPropertyByElementName(elementName) else { return false }
+        textProperty.setText(text)
+        
+        return sendNewTextVectorProperty(vectorProperty: newTextVectorProperty)
+    }
+    
+    func sendNewTextVectorProperty(vectorProperty: INDITextVectorProperty) -> Bool {
+        return sendData(command: vectorProperty.createNewCommand())
+    }
+    
+    func sendNewBlobVectorProperty(vectorProperty: INDIBlobVectorProperty) -> Bool {
+        return sendData(command: vectorProperty.createNewCommand())
+    }
+    
+    func sendGetProperties() {
+        var root = INDIProtocolElement(tagName: "getProperties")
+        root.addAttribute(attribute: INDIProtocolElement.Attribute(key: "version", value: INDIProtocolVersion))
+        
+        if watchDevice.isEmpty {
+            _ = sendData(command: root)
         } else {
-            guard let message = xmlCommand.attributes["message"] else {
-                print("No message content found.")
-                return -1
-            }
-            
-            var finalMessage = ""
-            if let timestamp = xmlCommand.attributes["timestamp"] {
-                finalMessage = "\(timestamp): \(message)"
-            } else {
-                let formatter = ISO8601DateFormatter()
-                finalMessage = formatter.string(from: Date()).dropLast() + ": \(message)"
-            }
-            await newUniversalMessage(message: finalMessage)
-        }
-        
-        return 0
-    }
-    
-    internal func sendGetPropertiesCommand() async {
-        if watchDevices.isEmpty {
-            let stringCommand = createGetPropertiesCOmmand(deviceName: "")
-            if let data = stringCommand.data(using: .ascii) {
-                _ = await sendData(data: data)
-                
-                if isVerbose { print("\(stringCommand)") }
-            }
-        } else {
-            for deviceName in watchDevices {
-                let stringCommand = createGetPropertiesCOmmand(deviceName: deviceName)
-                if let data = stringCommand.data(using: .ascii) {
-                    _ = await sendData(data: data)
-                    
-                    if isVerbose { print("\(stringCommand)") }
+            for deviceInfo in watchDevice.deviceInfos {
+                // If there are no specific properties to watch, we watch the complete device.
+                if deviceInfo.properties.isEmpty {
+                    var rootOne = root
+                    rootOne.addAttribute(attribute: INDIProtocolElement.Attribute(key: "device", value: deviceInfo.device!.deviceName))
+                    _ = sendData(command: rootOne)
+                } else {
+                    for propertyName in deviceInfo.properties {
+                        var rootOne = root
+                        rootOne.addAttribute(attribute: INDIProtocolElement.Attribute(key: "device", value: deviceInfo.device!.deviceName))
+                        rootOne.addAttribute(attribute: INDIProtocolElement.Attribute(key: "name", value: propertyName))
+                        _ = sendData(command: rootOne)
+                    }
                 }
             }
         }
     }
     
-    internal func createGetPropertiesCOmmand(deviceName: String) -> String {
-        var xmlString = "<getProperties version='\(INDIProtocolVersion)'"
+    func sendEnableBLOB(deviceName: String, propertyName: String, blobHandling: INDIBlobHandling) {
+        var root = INDIProtocolElement(tagName: "enableBLOB")
         
-        if !deviceName.isEmpty {
-            xmlString = "\(xmlString) device='\(deviceName)'"
+        root.addAttribute(attribute: INDIProtocolElement.Attribute(key: "device", value: deviceName))
+        
+        if !propertyName.isEmpty {
+            root.addAttribute(attribute: INDIProtocolElement.Attribute(key: "name", value: propertyName))
         }
         
-        return "\(xmlString)/>"
+        root.addStringValue(string: blobHandling.toString())
+        
+        _ = sendData(command: root)
+    }
+    
+    /// Send one ping request, the server will answer back with the same uuid.
+    /// - Parameters:
+    ///  - uid: This string will server as identifier for the reply.
+    /// reply will be dispatched to newPingReply
+    func sendPingRequest(uid: String) {
+        var root = INDIProtocolElement(tagName: "pingRequest")
+        
+        root.addAttribute(attribute: INDIProtocolElement.Attribute(key: "uid", value: uid))
+        
+        _ = sendData(command: root)
+    }
+    
+    /// Send a ping reply for the given uuid.
+    func sendPingReply(uid: String) {
+        var root = INDIProtocolElement(tagName: "pingReply")
+        
+        root.addAttribute(attribute: INDIProtocolElement.Attribute(key: "uid", value: uid))
+        
+        _ = sendData(command: root)
+    }
+    
+    func setDriverConnection(deviceName: String, status: Bool) {
+        guard let device = getDevice(deviceName: deviceName) else {
+            print("INDIAbstractClient: Error. Unable to find driver \(deviceName).")
+            return
+        }
+        
+        guard let switchVectorProperty = device.getSwitchVectorProperty(propertyName: "CONNECTION") else {
+            return
+        }
+        
+        // If we need to connect.
+        if status {
+            // If there is no need to do anything, i.e. already connected.
+            if switchVectorProperty[0].switchStateAsBool { return }
+            
+            let newSwitchVectorProperty = switchVectorProperty.copy() as! INDISwitchVectorProperty
+            newSwitchVectorProperty.reset()
+            newSwitchVectorProperty[0].setSwitchState(.On)
+            newSwitchVectorProperty[1].setSwitchState(.Off)
+            
+            _ = sendNewSwitchVectorProperty(vectorProperty: newSwitchVectorProperty)
+        } else {
+            // If there is no need to do anything, i.e. already disconnected.
+            if switchVectorProperty[1].switchStateAsBool { return }
+            
+            let newSwitchVectorProperty = switchVectorProperty.copy() as! INDISwitchVectorProperty
+            newSwitchVectorProperty.reset()
+            newSwitchVectorProperty[0].setSwitchState(.Off)
+            newSwitchVectorProperty[1].setSwitchState(.On)
+            
+            _ = sendNewSwitchVectorProperty(vectorProperty: newSwitchVectorProperty)
+        }
+    }
+}
+
+// MARK: - Command Handling Method
+public extension INDIAbstractClient {
+    /// Remove device.
+    /// - Parameters:
+    ///  - deviceName: Name of removed device.
+    func deleteDevice(deviceName: String) -> Int {
+        if let device = watchDevice.getDeviceByName(deviceName) {
+            _ = watchDevice.deleteDevice(device: device)
+            device.detach()
+            return 0
+        }
+        
+        print("Device \(deviceName) not found.")
+        return INDIBaseDevice.INDIError.DeviceNotFound.rawValue
+    }
+    
+    /// Delete property command.
+    /// - Parameters:
+    ///  - root: INDIProtocolElement instance.
+    func deletePropertyCommand(root: INDIProtocolElement) -> Int {
+        guard let device = watchDevice.getDeviceByName(root.getAttribute(name: "device") ?? "") else { return INDIBaseDevice.INDIError.DeviceNotFound.rawValue }
+        
+        device.checkMessage(root: root)
+        
+        if let propertyName = root.getAttribute(name: "name") {
+            if let vectorProperty = device.getVectorProperty(propertyName: propertyName) {
+                if isServerConnected {
+                    delegate?.removeVectorProperty(sender: device, vectorProperty: vectorProperty)
+                }
+                return device.removeVectorProperty(propertyName: propertyName)
+            }
+            
+            // Silently ignore Only clients.
+            if blobModes.isEmpty || blobModes.first?.blobHandling == .Only {
+                return 0
+            }
+            
+            print("Cannot delete property \(propertyName) as it is not defined yet. Check driver.")
+            return -1
+        }
+        
+        return deleteDevice(deviceName: device.deviceName)
+    }
+    
+    /// Process messages.
+    /// - Parameters:
+    ///  - root: INDIProtocolElement instance.
+    func messageCommand(root: INDIProtocolElement) -> Int {
+        if let device = watchDevice.getDeviceByName(root.getAttribute(name: "device") ?? "") {
+            device.checkMessage(root: root)
+            return 0
+        }
+        
+        guard let message = root.getAttribute(name: "message") else {
+            print("No message content found.")
+            return -1
+        }
+        
+        var finalMessage: String = ""
+        if let timestamp = root.getAttribute(name: "timestamp") {
+            finalMessage = "\(timestamp): \(message)"
+        } else {
+            let formatter = ISO8601DateFormatter()
+            finalMessage = "\(formatter.string(from: Date()).dropLast()): \(message)"
+        }
+        
+        newUniversalMessage(message: finalMessage)
+        return 0
+    }
+}
+
+// MARK: - Delegate Method
+extension INDIAbstractClient: INDISocketDelegate {
+    public func processINDIProtocol(root: INDIProtocolElement) -> Int {
+        // Ignore echoed newXXX
+        if root.tagName.contains("new") { return 0 }
+        
+        // Just ignore any getProperties we might get.
+        if root.tagName == "getProperties" {
+            return INDIBaseDevice.INDIError.PropertyDuplicated.rawValue
+        }
+        
+        if root.tagName == "pingRequest" {
+            sendPingReply(uid: root.getAttribute(name: "uid") ?? "")
+            return 0
+        }
+        
+        if root.tagName == "pingReply" {
+            newPingReply(uid: root.getAttribute(name: "uid") ?? "")
+        }
+        
+        if root.tagName == "message" {
+            return messageCommand(root: root)
+        }
+        
+        if root.tagName == "delProperty" {
+            return deletePropertyCommand(root: root)
+        }
+        
+        // If device is set to BLOB Only, we ignore everything else not related to blobs.
+        if getBLOBMode(deviceName: root.getAttribute(name: "device") ?? "") == .Only && root.tagName != "defBLOBVector" && root.tagName != "setBLOBVector" { return 0 }
+        
+        return watchDevice.processXML(root: root, constructHandler: {
+            let device = INDIBaseDevice()
+            device.delegate = self
+            return device
+        })
     }
 }

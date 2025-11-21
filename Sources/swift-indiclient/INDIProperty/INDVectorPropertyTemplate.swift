@@ -4,76 +4,94 @@
 //
 //  Created by Yoshio Kimura, Studio Parsec LLC on 2024/11/27.
 //
+import Foundation
 
-public class INDIVectorPropertyTemplate<T: INDIProperty>: INDIVectorProperty, IteratorProtocol, @unchecked Sendable {
+public class INDIVectorPropertyTemplate<T: INDIProperty>: INDIVectorProperty, IteratorProtocol {
     public typealias Element = T
     
     // MARK: - Original Property
-    private(set) public var properties: [Element] = []
-    private var index: Int = 0
+    internal(set) public var properties: [T]
     
+    // MARK: - Protocol Property
+    var index: Int = 0
+
     // MARK: - Initializer
+    public override init(deviceName: String = "", propertyName: String = "", propertyLabel: String = "", groupName: String = "", propertyPermission: INDIPropertyPermission = .ReadOnly, timeout: Double = 0, propertyState: INDIPropertyState = .Idle, timestamp: String = "", dynamic: Bool = false) {
+        self.properties = []
+        super.init(deviceName: deviceName, propertyName: propertyName, propertyLabel: propertyLabel, groupName: groupName, propertyPermission: propertyPermission, timeout: timeout, propertyState: propertyState, timestamp: timestamp, dynamic: dynamic)
+    }
+    
     deinit {
-        properties.removeAll()
+        self.properties.removeAll()
     }
     
-    // MARK: - Computed Property
-    public subscript(index: Int) -> Element {
+    // MARK: - Original Computed Property
+    public var propertyIsEmpty: Bool {
         get {
-            assert(properties.startIndex <= index && index < properties.endIndex, "index out of range.")
-            return properties[index]
-        }
-        set {
-            assert(properties.startIndex <= index && index < properties.endIndex, "index out of range.")
-            properties[index] = newValue
-        }
-    }
-    
-    public var copyProperties: [Element] {
-        get {
-            properties.map({ $0.copy() as! Element })
+            self.properties.isEmpty
         }
     }
     
     public var propertyCount: Int {
         get {
-            properties.count
+            self.properties.count
         }
     }
-    
-    public var propertyIsEmpty: Bool {
+
+    // MARK: - Computed Property
+    public subscript(index: Int) -> Element {
         get {
-            properties.isEmpty
+            assert(self.properties.startIndex <= index && index < self.properties.endIndex, "index out of range.")
+            return self.properties[index]
+        }
+        set {
+            assert(self.properties.startIndex <= index && index < self.properties.endIndex, "index out of range.")
+            self.properties[index] = newValue
         }
     }
     
     // MARK: - Protocol Method
-    public func next() -> Element? {
-        guard index < properties.count else { return nil }
+    public func next() -> T? {
+        guard index < self.properties.count else { return nil }
         defer { index += 1 }
-        return properties[index]
+        return self.properties[index]
     }
     
     // MARK: - Fundamental Method
-    public func appendProperty(property: Element) {
-        properties.append(property)
+    public func appendProperty(property: T) {
+        self.properties.append(property)
     }
     
-    public func findPropertyByElementName(_ name: String) -> Element? {
-        properties.first(where: { $0.isElementNameMatch(name) })
+    public func appendProperties(contentOf properties: [T]) {
+        self.properties.append(contentsOf: properties)
+    }
+    
+    public func findPropertyByElementName(_ name: String) -> T? {
+        self.properties.first(where: { $0.isElementNameMatch(name) })
     }
     
     public func findPropertyIndexByElementName(_ name: String) -> Int {
-        properties.firstIndex(where: { $0.isElementNameMatch(name) }) ?? -1
+        self.properties.firstIndex(where: { $0.isElementNameMatch(name) }) ?? -1
     }
     
-    public func createNewCommand(newProperties: [Element]) -> String {
-        return ""
-    }
+    internal func createNewCommand() -> INDIProtocolElement { INDIProtocolElement(tagName: "") }
+    
+    internal func createNewRootINDIProtocolElement() -> INDIProtocolElement { INDIProtocolElement(tagName: "") }
+    
+    internal func createNewChildrenINDIProtocolElement() -> [INDIProtocolElement] { [] }
     
     // MARK: - Override Method
+    public override func copy(with zone: NSZone? = nil) -> Any {
+        let copiedProperties = self.properties.map({ $0.copy() as! T })
+        
+        let newVectorProperty = INDIVectorPropertyTemplate<T>(deviceName: self.deviceName, propertyName: self.propertyName, propertyLabel: self.propertyLabel, groupName: self.groupName, propertyPermission: self.propertyPermission, timeout: self.timeout, propertyState: self.propertyState, timestamp: self.timestamp, dynamic: self.dynamic)
+        newVectorProperty.appendProperties(contentOf: copiedProperties)
+        
+        return newVectorProperty
+    }
+    
     public override func clear() {
-        properties.removeAll()
+        self.properties.removeAll()
         super.clear()
     }
 }

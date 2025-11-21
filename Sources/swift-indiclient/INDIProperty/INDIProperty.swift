@@ -7,30 +7,26 @@
 
 import Foundation
 
-public class INDIProperty: NSCopying, Identifiable, @unchecked Sendable {
+public class INDIProperty: NSObject, NSCopying, Identifiable {
     // MARK: - Fundamental Property
-    private(set) public var elementName: String
-    private(set) public var elementLabel: String
-    internal var parent: INDIVectorProperty?
+    internal(set) public var elementName: String
+    internal(set) public var elementLabel: String
+    internal(set) public var parent: INDIVectorProperty?
     
     // MARK: - Initializer
-    public init(elementName: String, elementLabel: String, parent: INDIVectorProperty? = nil) {
+    public init(elementName: String = "", elementLabel: String = "", parent: INDIVectorProperty? = nil) {
         self.elementName = elementName
         self.elementLabel = elementLabel
         self.parent = parent
     }
-    
-    public convenience init() {
-        self.init(elementName: "", elementLabel: "")
-    }
-    
+
     // MARK: - Protocol Method
     public func copy(with zone: NSZone? = nil) -> Any {
-        INDIProperty(elementName: self.elementName, elementLabel: self.elementLabel)
+        INDIProperty(elementName: self.elementName, elementLabel: self.elementLabel, parent: self.parent)
     }
     
     // MARK: - Fundamental Method
-    public func setParent(parent: INDIVectorProperty) {
+    public func setParent(_ parent: INDIVectorProperty) {
         self.parent = parent
     }
     
@@ -39,19 +35,20 @@ public class INDIProperty: NSCopying, Identifiable, @unchecked Sendable {
     }
     
     public func setElementLabel(_ label: String) {
-        elementLabel = label
+        self.elementLabel = label
     }
     
     public func isElementNameMatch(_ otherName: String) -> Bool {
-        elementName == otherName
+        self.elementName == otherName
     }
     
     public func isElementLabelMatch(_ otherLabel: String) -> Bool {
-        elementLabel == otherLabel
+        self.elementLabel == otherLabel
     }
     
     public func clear() {
-        elementName = ""
-        elementLabel = ""
+        self.elementName = ""
+        self.elementLabel = ""
+        self.parent = nil
     }
 }

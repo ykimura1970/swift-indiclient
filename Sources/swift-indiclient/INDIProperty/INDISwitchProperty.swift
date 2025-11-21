@@ -6,75 +6,55 @@
 //
 
 import Foundation
-import Observation
-import os
+import Combine
 
-@Observable
-final public class INDISwitchProperty: INDIProperty, @unchecked Sendable {
+public class INDISwitchProperty: INDIProperty, ObservableObject {
     // MARK: - Original Property
-    private(set) public var switchState: INDISwitchState
-    @ObservationIgnored private let lock = OSAllocatedUnfairLock()
+    @Published internal(set) public var switchState: INDISwitchState
     
     // MARK: - Initializer
-    public init(elementName: String, elementLabel: String, switchState: INDISwitchState) {
+    public init(elementName: String = "", elementLabel: String = "", switchState: INDISwitchState = .Off, parent: INDIVectorProperty? = nil) {
         self.switchState = switchState
-        super.init(elementName: elementName, elementLabel: elementLabel)
+        super.init(elementName: elementName, elementLabel: elementLabel, parent: parent)
     }
-    
-    public convenience init() {
-        self.init(elementName: "", elementLabel: "", switchState: .Off)
-    }
-    
-    // MARK: - Computed Property
+
+    // MARK: - Original Computed Property
     public var switchStateAsString: String {
         get {
-            switchState.toString()
+            self.switchState.toString()
         }
     }
     
     public var switchStateAsBool: Bool {
         get {
-            switchState.toBool()
+            self.switchState.toBool()
         }
-    }
-    
-    private var vectorProperty: INDISwitchVectorProperty? {
-        get {
-            parent as? INDISwitchVectorProperty
-        }
-    }
-    
-    // MARK: - Protocol Method
-    public override func copy(with zone: NSZone? = nil) -> Any {
-        return INDISwitchProperty(elementName: self.elementName, elementLabel: self.elementLabel, switchState: self.switchState)
     }
     
     // MARK: - Original Method
     public func setSwitchState(_ switchState: INDISwitchState) {
-        lock.withLock({
-            self.switchState = switchState
-        })
+        self.switchState = switchState
     }
     
-    public func setSwitchState(from string: String) -> Bool {
-        guard let switchState = INDISwitchState.switchState(from: string) else { return false }
-        lock.withLock({
+    public func setSwitchState(from stringSwitchState: String) {
+        if let switchState = INDISwitchState.switchState(from: stringSwitchState) {
             self.switchState = switchState
-        })
-        return true
+        } else {
+            self.switchState = .Off
+        }
     }
     
-    public func setSwitchState(from bool: Bool) {
-        lock.withLock({
-            switchState = INDISwitchState.switchState(from: bool)
-        })
+    public func setSwitchState(from boolSwitchState: Bool) {
+        self.switchState = INDISwitchState.switchState(from: boolSwitchState)
     }
     
     // MARK: - Override Method
+    public override func copy(with zone: NSZone? = nil) -> Any {
+        INDISwitchProperty(elementName: self.elementName, elementLabel: self.elementLabel, switchState: self.switchState, parent: self.parent)
+    }
+    
     public override func clear() {
-        lock.withLock({
-            switchState = .Off
-        })
+        self.switchState = .Off
         super.clear()
     }
 }

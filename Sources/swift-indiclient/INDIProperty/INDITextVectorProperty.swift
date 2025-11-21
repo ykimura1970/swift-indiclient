@@ -7,25 +7,38 @@
 
 import Foundation
 
-final public class INDITextVectorProperty: INDIVectorPropertyTemplate<INDITextProperty>, @unchecked Sendable {
-    // MARK: - Initializer
-    public init() {
-        super.init(deviceName: "", propertyName: "", propertyLabel: "", groupName: "", propertyPermission: .ReadOnly, timeout: 0.0, propertyState: .Idle, timestamp: "", propertyType: .INDIText)
-    }
-    
+public class INDITextVectorProperty: INDIVectorPropertyTemplate<INDITextProperty> {
     // MARK: - Override Method
-    public override func createNewCommand(newProperties: [Element]) -> String {
-        let elementRoot = XMLElement(name: "newTextVector")
-        elementRoot.addAttribute(createXMLAttribute(elementName: "device", stringValue: deviceName))
-        elementRoot.addAttribute(createXMLAttribute(elementName: "name", stringValue: propertyName))
+    internal override func createNewCommand() -> INDIProtocolElement {
+        var root = createNewRootINDIProtocolElement()
+        let children = createNewChildrenINDIProtocolElement()
         
-        for property in newProperties {
-            let elementChild = XMLElement(name: "oneText")
-            elementChild.stringValue = property.text
-            elementChild.addAttribute(createXMLAttribute(elementName: "name", stringValue: property.elementName))
-            elementRoot.addChild(elementChild)
+        if !children.isEmpty {
+            root.addChildren(contentOf: children)
         }
         
-        return elementRoot.xmlString
+        return root
+    }
+    
+    internal override func createNewRootINDIProtocolElement() -> INDIProtocolElement {
+        var root = INDIProtocolElement(tagName: "newTextVector")
+        
+        root.addAttribute(attribute: INDIProtocolElement.Attribute(key: "device", value: deviceName))
+        root.addAttribute(attribute: INDIProtocolElement.Attribute(key: "name", value: propertyName))
+        
+        return root
+    }
+    
+    internal override func createNewChildrenINDIProtocolElement() -> [INDIProtocolElement] {
+        var children = [INDIProtocolElement]()
+        
+        self.properties.forEach({ property in
+            var child = INDIProtocolElement(tagName: "oneText")
+            child.addAttribute(attribute: INDIProtocolElement.Attribute(key: "name", value: property.elementName))
+            child.addStringValue(string: property.text)
+            children.append(child)
+        })
+        
+        return children
     }
 }

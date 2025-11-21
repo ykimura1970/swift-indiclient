@@ -6,550 +6,185 @@
 //
 
 import Foundation
-internal import Collections
 internal import DequeModule
+internal import NIOConcurrencyHelpers
 
-public actor INDIBaseDevice: Identifiable, Hashable {
+public class INDIBaseDevice {
+    public enum INDIError: Int {
+        case DeviceNotFound     = -1    // INDI Device was not found
+        case PropertyInvalid    = -2    // Property has an invalid syntax or attribute.
+        case PropertyDuplicated = -3    // INDI Device property already defined.
+        case DispatchError      = -4    // Dispatching command to driver failed.
+    }
+    
+    public enum INDIWatch: Int, Sendable {
+        case WatchNew = 0       // Applies to discovered properties only.
+        case WatchUpdate        // Applies to updated properties only.
+        case WatchNewOrUpdate   // Applies when a property appears or is updated, i.e. both of the above.
+    }
+    
+    public enum INDIDriverInterface: Int, Sendable {
+        case GeneralInterface           = 0b00000000000000000000    // Default interface for all INDI devices.
+        case TelescopeInterface         = 0b00000000000000000001    // Telescope interface, must subclass INDI Telescope.
+        case CCDInterface               = 0b00000000000000000010    // CCD interface, must subclass INDI CCD.
+        case GuiderInterface            = 0b00000000000000000100    // Guider interface, must subclass INDI GuiderInterface.
+        case FocuserInterface           = 0b00000000000000001000    // Focuser interface, must subclass INDI FocuserInterface.
+        case FilterInterface            = 0b00000000000000010000    // Filter interface, must subclass INDI FilterInterface.
+        case DomeInterface              = 0b00000000000000100000    // Dome interface, must subclass INDI Dome.
+        case GPSInterface               = 0b00000000000001000000    // GPS interface, must subclass INDi GPS.
+        case WeatherInterface           = 0b00000000000010000000    // Weather interface, must subclass INDI Weather.
+        case AdaptiveOpticsInterface    = 0b00000000000100000000    // Adaptive Optics interface.
+        case DustcapInterface           = 0b00000000001000000000    // Dust cap interface.
+        case LightboxInterface          = 0b00000000010000000000    // Light box interface.
+        case DetectorInterface          = 0b00000000100000000000    // Detector interface, must subclass INDI Detector.
+        case RotatorInterface           = 0b00000001000000000000    // Rotator interface, must subclass INDI RotatorInterface.
+        case SpectrographInterface      = 0b00000010000000000000    // Spectrograph interface.
+        case CorrelatorInterface        = 0b00000100000000000000    // Correlators (interferometers) interface.
+        case AuxInterface               = 0b00001000000000000000    // Auxiliary interface.
+        case OutputInterface            = 0b00010000000000000000    // Digital Output (e.g. Relay) interface.
+        case InputInterface             = 0b00100000000000000000    // Digital/Analog Input (e.g. GPIO) interface.
+        case PowerInterface             = 0b01000000000000000000    // Power Controller interface.
+        case IMUInterface               = 0b10000000000000000000    // Intertial Measurement Unit interface.
+        case SensorInterface            = 0b00000110100000000000    // Correlator & Spectrograph & Detector
+    }
+
+    public struct INDIWatchDetails {
+        var watch: INDIWatch = .WatchNew
+        var handler: ((INDIVectorProperty) -> Void)?
+    }
+    
     // MARK: - Delegate Property
-    public weak var delegate: INDIDeviceMediatorDelegate?
+    public weak var delegate: INDIBaseMediatorDelegate?
     
     // MARK: - Fundamental Property
-    nonisolated(unsafe) private(set) public var deviceName: String
-    private(set) var vectorProperties: [INDIVectorProperty]
-    private(set) var propertyGroups: OrderedSet<String>
-    private(set) var messageQueue: Deque<String>
+    internal(set) public var deviceName: String
+    internal var properties: [INDIPropertyType]
+    internal var watchProperty: [String : INDIWatchDetails]
+    internal var messageLog: Deque<String>
+    internal var lock = NIOLock()
     
     // MARK: - Initializer
-    public init(deviceName: String) {
-        self.deviceName = deviceName
-        self.vectorProperties = []
-        self.propertyGroups = []
-        self.messageQueue = []
+    public init() {
+        self.deviceName = ""
+        self.properties = []
+        self.watchProperty = [:]
+        self.messageLog = []
     }
     
-    // MARK: - Protocol Method
-    public static func == (lhs: INDIBaseDevice, rhs: INDIBaseDevice) -> Bool {
-        ObjectIdentifier(lhs) == ObjectIdentifier(rhs)
-    }
-    
-    nonisolated public func hash(into hasher: inout Hasher) {
-        hasher.combine(ObjectIdentifier(self))
+    // MARK: - Computed Property
+    public var isConnected: Bool {
+        get {
+            guard let switchVectorProperty = getSwitchVectorProperty(propertyName: "CONNECTION"), let switchProperty = switchVectorProperty.findPropertyByElementName("CONNECT") else { return false }
+            return switchProperty.switchStateAsBool && switchVectorProperty.propertyState == .Ok
+        }
     }
     
     // MARK: - Fundamental Method
-    public func setDelegate(delegate: INDIDeviceMediatorDelegate?) {
-        self.delegate = delegate
+    public func setDeviceName(_ name: String) {
+        self.deviceName = name
     }
     
-    /// Get driver name.
-    /// - Returns: driver name.
-    public func getDriverName() -> String {
-        guard let textProperty = getTextVectorProperty(propertyName: "DRIVER_INFO")?.properties.first(where: { $0.isElementNameMatch("DRIVER_NAME") }) as? INDITextProperty else { return "" }
-        return textProperty.text
+    public func isDeviceNameMatch(_ otherName: String) -> Bool {
+        self.deviceName == otherName
     }
     
-    /// Get execution file name of driver.
-    /// - Returns: execution file name.
-    public func getDriverExec() -> String {
-        guard let textProperty = getTextVectorProperty(propertyName: "DRIVER_IINFO")?.properties.first(where: { $0.isElementNameMatch("DRIVER_EXEC") }) as? INDITextProperty else { return "" }
-        return textProperty.text
+    public func attach() {
+        delegate?.newDevice(sender: self)
     }
     
-    /// Get driver version.
-    /// - Returns: driver version.
-    public func getDriverVersion() -> String {
-        guard let textProperty = getTextVectorProperty(propertyName: "DRIVER_INFO")?.properties.first(where: { $0.isElementNameMatch("DRIVER_VERSION") }) as? INDITextProperty else { return "" }
-        return textProperty.text
+    public func detach() {
+        delegate?.removeDevice(sender: self)
     }
     
-    /// Get driver interface code.
-    /// - Returns: driver interface code.
-    public func getDriverInterface() -> UInt16 {
-        guard let textProperty = getTextVectorProperty(propertyName: "DRIVER_INFO")?.properties.first(where: { $0.isElementNameMatch("DRIVER_INTERFACE") }) as? INDITextProperty else { return 0 }
-        return UInt16(textProperty.text) ?? 0
-    }
-    
-    /// Get driver interface names.
-    /// - Returns: Array of driver interface names.
-    public func getDriverInterfaceAsStrings() -> [String] {
-        INDIDriverInterface(rawValue: getDriverInterface()).toStrings()
-    }
-    
-    /// Check if the given device name matches.
+    /// Call the callback handler function if property is available.
     /// - Parameters:
-    ///  - otherDeviceName: The device name to check for location.
-    /// - Returns: True if they match, false if they don't.
-    nonisolated public func isDeviceNameMatch(_ otherName: String) -> Bool {
-        deviceName == otherName
+    ///  - propertyName: Name of property/
+    ///  - handler: Hander as an argument of the function you can use INDINumberVectorProperty, INDISwitchVectorProperty
+    ///  - watch: You can decide whether the handler should be executed only once (WatchNew) on discovery of the property or also on every change of the value (WatchUpdate) or both (WatchUpdateOrUpdate).
+    public func watchProperty(propertyName: String, watch: INDIWatch = .WatchNew, handler: @Sendable @escaping (INDIVectorProperty) -> Void) {
+        if watchProperty[propertyName] == nil {
+            watchProperty[propertyName] = INDIWatchDetails()
+        }
+        
+        watchProperty[propertyName]?.watch = watch
+        watchProperty[propertyName]?.handler = handler
+        
+        // call handler function if property already exists.
+        if let vectorProperty = getVectorProperty(propertyName: propertyName) {
+            handler(vectorProperty)
+        }
+    }
+    
+    public func getDriverName() -> String? {
+        getTextVectorProperty(propertyName: "DRIVER_INFO")?.findPropertyByElementName("DRIVER_NAME")?.text
+    }
+    
+    public func getDriverExec() -> String? {
+        getTextVectorProperty(propertyName: "DRIVER_INFO")?.findPropertyByElementName("DRIVER_EXEC")?.text
+    }
+    
+    public func getDriverVersion() -> String? {
+        getTextVectorProperty(propertyName: "DRIVER_INFO")?.findPropertyByElementName("DRIVER_VERSION")?.text
+    }
+    
+    public func getDriverInterface() -> Int {
+        Int(getTextVectorProperty(propertyName: "DRIVER_INFO")?.findPropertyByElementName("DRIVER_INTERFACE")?.text ?? "") ?? 0
     }
 }
 
-// MARK: - Vector Property Method
-extension INDIBaseDevice {
-    /// Get vector property groups.
-    /// - Returns: Array of group name of vector property.
-    public func getVectorPropertyGroups() -> [String] {
-        Array(propertyGroups)
+// MARK: - Property Method
+public extension INDIBaseDevice {
+    func getVectorProperties() -> [INDIVectorProperty] {
+        self.properties.compactMap({ $0.vectorProperty })
     }
     
-    /// Get vector properties by group name.
-    /// - Parameters:
-    ///  - groupName: vector proeprty group name.
-    /// - Returns: vector properties by group name.
-    public func getVectorPropertiesByGroup(groupName: String) -> [INDIVectorProperty] {
-        Dictionary(grouping: vectorProperties, by: { $0.groupName })[groupName] ?? []
+    func getVectorProperty(propertyName: String, type: INDIPropertyType = .INDIUnknown) -> INDIVectorProperty? {
+        lock.withLock({
+            self.properties.first(where: { $0.isPropertyNameMatch(propertyName) && ($0 == type || type == .INDIUnknown) })?.vectorProperty
+        })
     }
     
-    /// Get all vector properties.
-    /// - Returns: Array of all vector properties.
-    public func getAllVectorProperties() -> [INDIVectorProperty] {
-        vectorProperties
+    func getNumberVectorProperty(propertyName: String) -> INDINumberVectorProperty? {
+        getVectorProperty(propertyName: propertyName, type: .INDINumber()) as? INDINumberVectorProperty
     }
     
-    /// Get vector property.
-    /// - Parameters:
-    ///  - propertyName: property name.
-    ///  - type: property type.
-    /// - Returns: A vector property that matches the specified property name and proeprty type. Otherwise nil.
-    public func getVectorProperty(propertyName: String, propertyType: INDIPropertyType = .INDIUnknown) -> INDIVectorProperty? {
-        propertyType == .INDIUnknown ? vectorProperties.first(where: { $0.isPropertyNameMatch(propertyName) }) : vectorProperties.first(where: { $0.isPropertyNameMatch(propertyName) && $0.propertyType == propertyType })
+    func getSwitchVectorProperty(propertyName: String) -> INDISwitchVectorProperty? {
+        getVectorProperty(propertyName: propertyName, type: .INDISwitch()) as? INDISwitchVectorProperty
     }
     
-    /// Get number vector property.
-    /// - Parameters:
-    ///  - propertyName: property name.
-    /// - Returns: A number vector property that matches the specified property name. Otherwise nil.
-    public func getNumberVectorProperty(propertyName: String) -> INDINumberVectorProperty? {
-        getVectorProperty(propertyName: propertyName, propertyType: .INDINumber) as? INDINumberVectorProperty
+    func getTextVectorProperty(propertyName: String) -> INDITextVectorProperty? {
+        getVectorProperty(propertyName: propertyName, type: .INDIText()) as? INDITextVectorProperty
     }
     
-    /// Get switch vector property.
-    /// - Parameters:
-    ///  - propertyName: property name.
-    /// - Returns: A switch vector property that matches the specified property name. Otherwise nil.
-    public func getSwitchVectorProperty(propertyName: String) -> INDISwitchVectorProperty? {
-        getVectorProperty(propertyName: propertyName, propertyType: .INDISwitch) as? INDISwitchVectorProperty
+    func getLightVectorProperty(propertyName: String) -> INDILightVectorProperty? {
+        getVectorProperty(propertyName: propertyName, type: .INDILight()) as? INDILightVectorProperty
     }
     
-    /// Get text vector property.
-    /// - Parameters:
-    ///  - propertyName: property name.
-    /// - Returns: A text vector property that matches the specified proeprty name. Otherwise nil.
-    public func getTextVectorProperty(propertyName: String) -> INDITextVectorProperty? {
-        getVectorProperty(propertyName: propertyName, propertyType: .INDIText) as? INDITextVectorProperty
+    func getBlobVectorProperty(propertyName: String) -> INDIBlobVectorProperty? {
+        getVectorProperty(propertyName: propertyName, type: .INDIBlob()) as? INDIBlobVectorProperty
     }
     
-    /// Get light vector property.
-    /// - Parameters:
-    ///  - propertyName: property name.
-    /// - Returns: A light vector property that matches the specified property name. Otherwise nil.
-    public func getLightVectorProperty(propertyName: String) -> INDILightVectorProperty? {
-        getVectorProperty(propertyName: propertyName, propertyType: .INDILight) as? INDILightVectorProperty
+    func getVectorPropertyState(propertyName: String) -> INDIPropertyState {
+        getVectorProperty(propertyName: propertyName)?.propertyState ?? .Idle
     }
     
-    /// Get blob vector property.
-    /// - Parameters:
-    ///  - propertyName: property name.
-    /// - Returns: A blob vector property that matches the specified property name. Otherwise nil.
-    public func getBlobVetorProperty(propertyName: String) -> INDIBlobVectorProperty? {
-        getVectorProperty(propertyName: propertyName, propertyType: .INDIBlob) as? INDIBlobVectorProperty
+    func getVectorPropertyPermission(propertyName: String) -> INDIPropertyPermission {
+        getVectorProperty(propertyName: propertyName)?.propertyPermission ?? .ReadOnly
     }
     
-    /// Get property state for the specified property name.
-    /// - Parameters:
-    ///  - propertyName: property name.
-    /// - Returns: property state for the specified property name.
-    public func getVectorPropertyState(propertyName: String) -> INDIPropertyState? {
-        vectorProperties.first(where: { $0.isPropertyNameMatch(propertyName) })?.propertyState
-    }
-    
-    /// Get property permission for the specified property name.
-    /// - Parameters:
-    ///  - propertyName: property name.
-    /// - Returns: property permission for the specified property name.
-    public func getVectorPropertyPermission(propertyName: String) -> INDIPropertyPermission? {
-        vectorProperties.first(where: { $0.isGroupName(propertyName) })?.propertyPermission
-    }
-}
-
-// MARK: - Vector Property Operation Method
-extension INDIBaseDevice {
-    /// Build a vector property given the supplied XML element (defXXX).
-    /// - Parameters:
-    ///  - xmlCommand: XML element.
-    /// - Returns: 0 if successful, -1 otherwise.
-    public func buildVectorProperty(xmlCommand: INDIProtocolElement) async -> Int {
-        guard let deviceName = xmlCommand.attributes["device"], let propertyName = xmlCommand.attributes["name"] else { return -1 }
-        let tagName = xmlCommand.tagName
-        
-        // Find type of tag.
-        let typeName: [String : INDIPropertyType] = [
-            "defNumberVector" : .INDINumber,
-            "defSwitchVector" : .INDISwitch,
-            "defTextVector" : .INDIText,
-            "defLightVector" : .INDILight,
-            "defBLOBVector" : .INDIBlob
-        ]
-        
-        guard let tagType = typeName[tagName] else {
-            print("INDI: <\(tagName)> Unable to process tag.")
-            return -1
-        }
-        
-        if getVectorProperty(propertyName: propertyName) != nil {
-            return INDIErrorType.PropertyDuplicated.rawValue
-        }
-        
-        if deviceName.isEmpty {
-            return -1
-        }
-        
-        var vectorProperty: INDIVectorProperty
-        var isPropertyEmpty: Bool = false
-        
-        switch tagType {
-        case .INDINumber:
-            let typedVectorProperty = INDINumberVectorProperty()
+    func removeVectorProperty(propertyName: String) -> Int {
+        let result = lock.withLock({
+            var result: Int = INDIError.PropertyInvalid.rawValue
             
-            for element in xmlCommand.children {
-                if element.tagName != "defNumber" { continue }
-                
-                let property = INDINumberProperty()
-                property.setParent(parent: typedVectorProperty)
-                
-                if let elementName = element.attributes["name"] {
-                    property.setElementName(elementName)
+            self.properties.removeAll(where: {
+                if $0.isPropertyNameMatch(propertyName) {
+                    result = 0
+                    return true
                 }
-                if let elementLabel = element.attributes["label"] {
-                    property.setElementLabel(elementLabel)
-                }
-                
-                if let elementFormat = element.attributes["format"] {
-                    property.setFormat(elementFormat)
-                }
-                
-                if let elementMin = Double(element.attributes["min"] ?? "") {
-                    property.setMin(elementMin)
-                }
-                if let elementMax = Double(element.attributes["max"] ?? "") {
-                    property.setMax(elementMax)
-                }
-                if let elementStep = Double(element.attributes["step"] ?? "") {
-                    property.setStep(elementStep)
-                }
-                
-                if let elementValue = Double(element.stringValue) {
-                    property.setValue(elementValue)
-                }
-                
-                if !property.isElementNameMatch("") {
-                    typedVectorProperty.appendProperty(property: property)
-                }
-            }
-            isPropertyEmpty = typedVectorProperty.propertyIsEmpty
-            vectorProperty = typedVectorProperty
-        case .INDISwitch:
-            let typedVectorProperty = INDISwitchVectorProperty()
+                return false
+            })
             
-            for element in xmlCommand.children {
-                if element.tagName != "defSwitch" { continue }
-                
-                let property = INDISwitchProperty()
-                property.setParent(parent: typedVectorProperty)
-                
-                if let elementName = element.attributes["name"] {
-                    property.setElementName(elementName)
-                }
-                if let elementLabel = element.attributes["label"] {
-                    property.setElementLabel(elementLabel)
-                }
-                
-                _ = property.setSwitchState(from: element.stringValue)
-                
-                if !property.isElementNameMatch("") {
-                    typedVectorProperty.appendProperty(property: property)
-                }
-            }
-            isPropertyEmpty = typedVectorProperty.propertyIsEmpty
-            vectorProperty = typedVectorProperty
-        case .INDIText:
-            let typedVectorProperty = INDITextVectorProperty()
-            
-            for element in xmlCommand.children {
-                if element.tagName != "defText" { continue }
-                
-                let property = INDITextProperty()
-                property.setParent(parent: typedVectorProperty)
-                
-                if let elementName = element.attributes["name"] {
-                    property.setElementName(elementName)
-                }
-                if let elementLabel = element.attributes["label"] {
-                    property.setElementLabel(elementLabel)
-                }
-                
-                property.setText(element.stringValue)
-                
-                if !property.isElementNameMatch("") {
-                    typedVectorProperty.appendProperty(property: property)
-                }
-            }
-            isPropertyEmpty = typedVectorProperty.propertyIsEmpty
-            vectorProperty = typedVectorProperty
-        case .INDILight:
-            let typedVectorProperty = INDILightVectorProperty()
-            
-            for element in xmlCommand.children {
-                if element.tagName != "defLight" { continue }
-                
-                let property = INDILightProperty()
-                property.setParent(parent: typedVectorProperty)
-                
-                if let elementName = element.attributes["name"] {
-                    property.setElementName(elementName)
-                }
-                if let elementLabel = element.attributes["label"] {
-                    property.setElementLabel(elementLabel)
-                }
-                
-                _ = property.setLightState(from: element.stringValue)
-                
-                if !property.isElementNameMatch("") {
-                    typedVectorProperty.appendProperty(property: property)
-                }
-            }
-            isPropertyEmpty = typedVectorProperty.propertyIsEmpty
-            vectorProperty = typedVectorProperty
-        case .INDIBlob:
-            let typedVectorProperty = INDIBlobVectorProperty()
-            
-            for element in xmlCommand.children {
-                if element.tagName != "defBLOB" { continue }
-                
-                let property = INDIBlobProperty()
-                property.setParent(parent: typedVectorProperty)
-                
-                if let elementName = element.attributes["name"] {
-                    property.setElementName(elementName)
-                }
-                if let elementLabel = element.attributes["label"] {
-                    property.setElementLabel(elementLabel)
-                }
-                
-                if let elementFormat = element.attributes["format"] {
-                    property.setFormat(elementFormat)
-                }
-                
-                if !property.isElementNameMatch("") {
-                    typedVectorProperty.appendProperty(property: property)
-                }
-            }
-            isPropertyEmpty = typedVectorProperty.propertyIsEmpty
-            vectorProperty = typedVectorProperty
-        default:
-            return -1
-        }
-        
-        if isPropertyEmpty {
-            print("\(propertyName): \(tagName) with no valid members.")
-            return 0
-        }
-        
-        vectorProperty.setDeviceName(deviceName)
-        vectorProperty.setPropertyName(propertyName)
-        
-        if let propertyLabel = xmlCommand.attributes["label"] {
-            vectorProperty.setPropertyLabel(propertyLabel)
-        }
-        if let groupName = xmlCommand.attributes["group"] {
-            vectorProperty.setGroupName(groupName)
-            appendVectorPropertyGroup(groupName: groupName)
-        }
-        
-        _ = vectorProperty.setPropertyState(from: xmlCommand.attributes["state"] ?? "")
-        
-        if vectorProperty.propertyType != .INDILight {
-            _ = vectorProperty.setPropertyPermission(from: xmlCommand.attributes["perm"] ?? "")
-        }
-        
-        appendVectorProperty(vectorProperty: vectorProperty)
-        delegate?.newVectorProperty(sender: self, vectorProperty: vectorProperty)
-        
-        return 0
-    }
-    
-    /// Handle setXXX command from client.
-    /// - Parameters:
-    ///  - xmlCommand: XML element.
-    /// - Returns: 0 if successful, -1 otherwise.
-    public func updateVectorProperty(xmlCommand: INDIProtocolElement) async -> Int {
-        guard let propertyName = xmlCommand.attributes["name"] else { return -1 }
-        let tagName = xmlCommand.tagName
-
-        // check message
-        await checkMessage(xmlCommand: xmlCommand)
-        
-        // Find type of tag.
-        let typeName: [String : INDIPropertyType] = [
-            "setNumberVector" : .INDINumber,
-            "setSwitchVector" : .INDISwitch,
-            "setTextVector" : .INDIText,
-            "setLightVector" : .INDILight,
-            "setBLOBVector" : .INDIBlob
-        ]
-        
-        guard let tagType = typeName[tagName] else {
-            print("INDI: <\(tagName)> Unable to process tag.")
-            return -1
-        }
-        
-        // update specific values.
-        if let vectorProperty = getVectorProperty(propertyName: propertyName, propertyType: tagType) {
-            // 1. set overall vector property state, if any.
-            if let propertyState = INDIPropertyState.propertyState(from: xmlCommand.attributes["state"] ?? "") {
-                vectorProperty.setPropertyState(propertyState)
-            } else {
-                print("INDI: <\(tagName)> bogus state \(xmlCommand.attributes["state"] ?? "").")
-                return -1
-            }
-            
-            // 2. allow changing the timeout.
-            if let timeout = Double(xmlCommand.attributes["timeout"] ?? "") {
-                vectorProperty.setTimeout(timeout)
-            }
-            
-            // update spepcific values.
-            switch tagType {
-            case .INDINumber:
-                let typedVectorProperty = vectorProperty as! INDINumberVectorProperty
-                
-                xmlCommand.children.forEach({ element in
-                    if let elementName = element.attributes["name"] {
-                        if let property = typedVectorProperty.findPropertyByElementName(elementName) {
-                            if let elementValue = Double(element.stringValue) {
-                                property.setValue(elementValue)
-                            }
-                            
-                            // permit changing of min/max.
-                            if let elementMin = Double(element.attributes["min"] ?? "") {
-                                property.setMin(elementMin)
-                            }
-                            if let elementMax = Double(element.attributes["max"] ?? "") {
-                                property.setMax(elementMax)
-                            }
-                        }
-                    }
-                })
-            case .INDISwitch:
-                let typedVectorProperty = vectorProperty as! INDISwitchVectorProperty
-                
-                xmlCommand.children.forEach({ element in
-                    if let elementName = element.attributes["name"] {
-                        if let property = typedVectorProperty.findPropertyByElementName(elementName) {
-                            _ = property.setSwitchState(from: element.stringValue)
-                        }
-                    }
-                })
-            case .INDIText:
-                let typedVectorProperty = vectorProperty as! INDITextVectorProperty
-                
-                xmlCommand.children.forEach({ element in
-                    if let elementName = element.attributes["name"] {
-                        if let property = typedVectorProperty.findPropertyByElementName(elementName) {
-                            property.setText(element.stringValue)
-                        }
-                    }
-                })
-            case .INDILight:
-                let typedVectorProperty = vectorProperty as! INDILightVectorProperty
-                
-                xmlCommand.children.forEach({ element in
-                    if let elementName = element.attributes["name"] {
-                        if let property = typedVectorProperty.findPropertyByElementName(elementName) {
-                            _ = property.setLightState(from: element.stringValue)
-                        }
-                    }
-                })
-            case .INDIBlob:
-                let typedVectorProperty = vectorProperty as! INDIBlobVectorProperty
-                if setBlob(vectorProperty: typedVectorProperty, xmlCommand: xmlCommand) < 0 {
-                    return -1
-                }
-            case .INDIUnknown:
-                return -1
-            }
-            
-            delegate?.updateVectorProperty(sender: self, vectorProperty: vectorProperty)
-            return 0
-        }
-        
-        print("INDI: Could not find vector property \(propertyName), type \(tagType) in \(deviceName).")
-        return -1
-    }
-    
-    /// Parse and store BLOB in the respective vector property.
-    /// - Parameters:
-    ///  - vectorProperty: INDIBlobVectorProperty instance.
-    ///  - xmlCommand: XML element.
-    /// - Returns: 0 if parsing is successful, -1 otherwise.
-    private func setBlob(vectorProperty: INDIBlobVectorProperty, xmlCommand: INDIProtocolElement) -> Int {
-        for element in xmlCommand.children {
-            if element.tagName != "oneBLOB" { continue }
-            
-            guard let elementName = element.attributes["name"], let format = element.attributes["format"], let size = Int(element.attributes["size"] ?? "0") else {
-                print("INDI: \(vectorProperty.deviceName).\(vectorProperty.propertyName) No valid members.")
-                return -1
-            }
-            
-            if size == 0 {
-                continue
-            }
-            
-            if let property = vectorProperty.findPropertyByElementName(elementName) {
-                if let base64DecodeData = Data(base64Encoded: element.blobData) {
-                    property.setSize(size: size)
-                    property.setBlob(blob: base64DecodeData)
-                    property.setBlobLength(base64DecodeData.count)
-                } else {
-                    print("INDI: \(vectorProperty.deviceName).\(vectorProperty.propertyName).\(elementName) base64 decode error.")
-                    return -1
-                }
-                
-                if format.hasSuffix(".z") {
-                    property.setFormat(String(format.dropLast(2)))
-                    
-                    do {
-                        let data = NSMutableData(data: property.blob)
-                        try data.decompress(using: .zlib)
-                        property.setSize(size: data.count)
-                        property.setBlob(blob: data as Data)
-                    } catch let error {
-                        print("\(error)")
-                        print("INDI: \(vectorProperty.deviceName).\(vectorProperty.propertyName).\(elementName) compression error.")
-                        return -1
-                    }
-                } else {
-                    property.setFormat(format)
-                }
-            }
-        }
-
-        return 0
-    }
-    
-    /// Handle delXXX command line from client.
-    /// - Parameters:
-    ///  - xmlCommand: XML element to parse and set.
-    /// - Returns: True if the vector property exists and was deleted, false otherwise.
-    public func removeVectorProperty(propertyName: String) -> Int {
-        var result = INDIErrorType.PropertyInvalid.rawValue
-        
-        vectorProperties.removeAll(where: {
-            if $0.isPropertyNameMatch(propertyName) {
-                result = 0
-                return true
-            }
-            return false
+            return result
         })
         
         if result != 0 {
@@ -560,60 +195,341 @@ extension INDIBaseDevice {
     }
 }
 
-// MARK: - Message Method
-extension INDIBaseDevice {
-    /// Check and add message to the driver's message queue.
+// MARK: - Property Build and Update Method
+public extension INDIBaseDevice {
+    /// Build a vector property given the supplied XML element (defXXX).
     /// - Parameters:
-    ///  - xmlCommand: XML element.
-    nonisolated public func checkMessage(xmlCommand: INDIProtocolElement) async {
-        guard let message = xmlCommand.attributes["message"] else { return }
+    ///  - root: XML element to parse and build.
+    ///  - isDynamic: set to true if property is loaded from an XML file.
+    /// - Returns: 0 if parsing is successful, -1 otherwise.
+    func buildVectorProperty(root: INDIProtocolElement, isDynamic: Bool = false) -> Int {
+        guard let deviceName = root.getAttribute(name: "device"), let propertyName = root.getAttribute(name: "name") else { return -1 }
         
-        var finalMessage = ""
-        if let timestamp = xmlCommand.attributes["timestamp"] {
-            finalMessage = "\(timestamp): \(message)"
-        } else {
-            let formatter = ISO8601DateFormatter()
-            finalMessage = formatter.string(from: Date()).dropLast() + ": \(message)"
+        if self.deviceName.isEmpty {
+            self.deviceName = deviceName
         }
         
-        await appendMessage(message: finalMessage)
+        if getVectorProperty(propertyName: propertyName) != nil {
+            return INDIError.PropertyDuplicated.rawValue
+        }
+        
+        // find type of tag.
+        let tagTypeName: [String : INDIPropertyType] = [
+            "defNumberVector" : .INDINumber(),
+            "defSwitchVector" : .INDISwitch(),
+            "defTextVector" : .INDIText(),
+            "defLightVector" : .INDILight(),
+            "defBLOBVector" : .INDIBlob()
+        ]
+        
+        guard let rootTagType = tagTypeName[root.tagName] else {
+            print("INDI: <\(root.tagName)> Unable to process tag.")
+            return -1
+        }
+        
+        var wrapVectorProperty: INDIPropertyType
+        switch rootTagType {
+        case .INDINumber(_):
+            let vectorProperty = INDINumberVectorProperty()
+            
+            root.children.forEach({ child in
+                if child.tagName == "defNumber" {
+                    let property = INDINumberProperty()
+                    property.setParent(vectorProperty)
+                    property.setElementName(child.getAttribute(name: "name") ?? "")
+                    property.setElementLabel(child.getAttribute(name: "label") ?? "")
+                    property.setFormat(child.getAttribute(name: "format") ?? "")
+                    property.setMin(Double(child.getAttribute(name: "min") ?? "") ?? 0)
+                    property.setMax(Double(child.getAttribute(name: "max") ?? "") ?? 0)
+                    property.setStep(Double(child.getAttribute(name: "step") ?? "") ?? 0)
+                    property.setValue(Double(child.stringValue ?? "") ?? 0)
+                    
+                    if !property.isElementNameMatch("") {
+                        vectorProperty.appendProperty(property: property)
+                    }
+                }
+            })
+            
+            wrapVectorProperty = .INDINumber(vectorProperty)
+        case .INDISwitch(_):
+            let vectorProperty = INDISwitchVectorProperty()
+            
+            root.children.forEach({ child in
+                if child.tagName == "defSwitch" {
+                    let property = INDISwitchProperty()
+                    property.setParent(vectorProperty)
+                    property.setElementName(child.getAttribute(name: "name") ?? "")
+                    property.setElementLabel(child.getAttribute(name: "label") ?? "")
+                    property.setSwitchState(from: child.stringValue ?? "")
+                    
+                    if !property.isElementNameMatch("") {
+                        vectorProperty.appendProperty(property: property)
+                    }
+                }
+            })
+            
+            wrapVectorProperty = .INDISwitch(vectorProperty)
+        case .INDIText(_):
+            let vectorProperty = INDITextVectorProperty()
+            
+            root.children.forEach({ child in
+                if child.tagName == "defText" {
+                    let property = INDITextProperty()
+                    property.setParent(vectorProperty)
+                    property.setElementName(child.getAttribute(name: "name") ?? "")
+                    property.setElementLabel(child.getAttribute(name: "label") ?? "")
+                    property.setText(child.stringValue ?? "")
+                    
+                    if !property.isElementNameMatch("") {
+                        vectorProperty.appendProperty(property: property)
+                    }
+                }
+            })
+            
+            wrapVectorProperty = .INDIText(vectorProperty)
+        case .INDILight(_):
+            let vectorProperty = INDILightVectorProperty()
+            
+            root.children.forEach({ child in
+                if child.tagName == "defLight" {
+                    let property = INDILightProperty()
+                    property.setParent(vectorProperty)
+                    property.setElementName(child.getAttribute(name: "name") ?? "")
+                    property.setElementLabel(child.getAttribute(name: "label") ?? "")
+                    property.setLightState(from: child.stringValue ?? "")
+                    
+                    if !property.isElementNameMatch("") {
+                        vectorProperty.appendProperty(property: property)
+                    }
+                }
+            })
+            
+            wrapVectorProperty = .INDILight(vectorProperty)
+        case .INDIBlob(_):
+            let vectorProperty = INDIBlobVectorProperty()
+            
+            root.children.forEach({ child in
+                if child.tagName == "defBLOB" {
+                    let property = INDIBlobProperty()
+                    property.setParent(vectorProperty)
+                    property.setElementName(child.getAttribute(name: "name") ?? "")
+                    property.setElementLabel(child.getAttribute(name: "label") ?? "")
+                    property.setFormat(child.getAttribute(name: "format") ?? "")
+                    
+                    if !property.isElementNameMatch("") {
+                        vectorProperty.appendProperty(property: property)
+                    }
+                }
+            })
+            
+            wrapVectorProperty = .INDIBlob(vectorProperty)
+        case .INDIUnknown:
+            return -1
+        }
+        
+        if wrapVectorProperty.propertyIsEmpty {
+            print("\(propertyName): \(root.tagName) with no valid members.")
+            return 0
+        }
+        
+        wrapVectorProperty.vectorProperty?.setDeviceName(deviceName)
+        wrapVectorProperty.vectorProperty?.setPropertyName(propertyName)
+        wrapVectorProperty.vectorProperty?.setPropertyLabel(root.getAttribute(name: "label") ?? "")
+        wrapVectorProperty.vectorProperty?.setGroupName(root.getAttribute(name: "group") ?? "")
+        wrapVectorProperty.vectorProperty?.setPropertyState(from: root.getAttribute(name: "state") ?? "")
+        wrapVectorProperty.vectorProperty?.setTimeout(Double(root.getAttribute(name: "timeout") ?? "") ?? 0)
+        wrapVectorProperty.vectorProperty?.setDynamic(dynamic: isDynamic)
+        
+        if rootTagType != .INDILight() {
+            wrapVectorProperty.vectorProperty?.setPropertyPermission(from: root.getAttribute(name: "perm") ?? "")
+        }
+        
+        self.properties.append(wrapVectorProperty)
+        self.delegate?.newVectorProperty(sender: self, vectorProperty: wrapVectorProperty.vectorProperty!)
+        
+        return 0
     }
     
-    /// Get the message with the specified index from messageQueue.
+    /// Handle setXXX commands from client.
     /// - Parameters:
-    ///  - index: messageQueue index.
-    /// - Returns: message string
-    public func messageQueue(index: Int) -> String {
-        index >= 0 && index < messageQueue.count ? messageQueue[index] : ""
+    ///  - root: XML element to parse and update.
+    /// - Returns: 0 if parsing is successful, -1 otherwise.
+    func setValue(root: INDIProtocolElement) -> Int {
+        guard let propertyName = root.getAttribute(name: "name") else {
+            print("INDI: <\(root.tagName)> unable to find name attribute.")
+            return -1
+        }
+        
+        // check emssage.
+        checkMessage(root: root)
+        
+        // find type of tag.
+        let tagTypeName: [String : INDIPropertyType] = [
+            "setNumberVector" : .INDINumber(),
+            "setSwitchVector" : .INDISwitch(),
+            "setTextVector" : .INDIText(),
+            "setLightVector" : .INDILight(),
+            "setBLOBVector" : .INDIBlob()
+        ]
+        
+        guard let rootTagType = tagTypeName[root.tagName] else {
+            print("INDI: <\(root.tagName) unable to process tag.")
+            return -1
+        }
+        
+        // update generic value.
+        guard let vectorProperty = getVectorProperty(propertyName: propertyName) else {
+            print("INDI: Could not find property \(propertyName) in \(deviceName).")
+            return -1
+        }
+        
+        // 1. set overall vector property state, if any.
+        if let propertyState = INDIPropertyState.propertyState(from: root.getAttribute(name: "state") ?? "") {
+            vectorProperty.setPropertyState(propertyState)
+        } else {
+            print("INDI: <\(root.tagName) bogus state \(root.getAttribute(name: "state") ?? "nil") for \(propertyName).")
+            return -1
+        }
+        
+        // 2.allow changing the timeout.
+        if let timeout = Double(root.getAttribute(name: "timeout") ?? "") {
+            vectorProperty.setTimeout(timeout)
+        }
+        
+        // update specific values.
+        switch rootTagType {
+        case .INDINumber(_):
+            let typedVectorProperty = vectorProperty as! INDINumberVectorProperty
+            
+            root.children.forEach({ child in
+                if let property = typedVectorProperty.findPropertyByElementName(child.getAttribute(name: "name") ?? "") {
+                    property.setValue(Double(child.stringValue ?? "") ?? 0)
+                    
+                    // permit chaning of min/max
+                    if let minValue = Double(child.getAttribute(name: "min") ?? "") { property.setMin(minValue) }
+                    if let maxValue = Double(child.getAttribute(name: "max") ?? "") { property.setMax(maxValue) }
+                }
+            })
+        case .INDISwitch(_):
+            let typedVectorProperty = vectorProperty as! INDISwitchVectorProperty
+            
+            root.children.forEach({ child in
+                if let property = typedVectorProperty.findPropertyByElementName(child.getAttribute(name: "name") ?? "") {
+                    property.setSwitchState(from: child.stringValue ?? "")
+                }
+            })
+        case .INDIText(_):
+            let typedVectorProperty = vectorProperty as! INDITextVectorProperty
+            
+            root.children.forEach({ child in
+                if let property = typedVectorProperty.findPropertyByElementName(child.getAttribute(name: "name") ?? "") {
+                    property.setText(child.stringValue ?? "")
+                }
+            })
+        case .INDILight(_):
+            let typedVectorProperty = vectorProperty as!INDILightVectorProperty
+            
+            root.children.forEach({ child in
+                if let property = typedVectorProperty.findPropertyByElementName(child.getAttribute(name: "name") ?? "") {
+                    property.setLightState(from: child.stringValue ?? "")
+                }
+            })
+        case .INDIBlob(_):
+            let typedVectorProperty = vectorProperty as! INDIBlobVectorProperty
+            
+            if setBLOB(vectorProperty: typedVectorProperty, root: root) < 0 {
+                return -1
+            }
+        case .INDIUnknown:
+            return -1
+        }
+        
+        self.delegate?.updateVectorProperty(sender: self, vectorProperty: vectorProperty)
+        
+        return 0
     }
     
-    /// Get the message with the last from messageQueue.
-    /// - Returns: message string.
-    public func lastMessage() -> String {
-        messageQueue.last ?? ""
+    func setBLOB(vectorProperty: INDIBlobVectorProperty, root: INDIProtocolElement) -> Int {
+        for child in root.children {
+            if child.tagName == "oneBLOB" {
+                guard let elementName = child.getAttribute(name: "name"), let format = child.getAttribute(name: "format"), let sizeString = child.getAttribute(name: "size") else {
+                    print("INDI: \(deviceName).\(vectorProperty.propertyName) No vaild members.")
+                    return -1
+                }
+                
+                guard let property = vectorProperty.findPropertyByElementName(elementName) else {
+                    print("INDI: \(deviceName).\(vectorProperty.propertyName).\(elementName) No valid members.")
+                    return -1
+                }
+                
+                let size = Int(sizeString) ?? 0
+                if size == 0 {
+                    continue
+                }
+                
+                property.setSize(size)
+                
+                if let base64DecodeData = Data(base64Encoded: property.blob) {
+                    property.setBlob(blob: base64DecodeData)
+                    property.setBlobLength(base64DecodeData.count)
+                } else {
+                    print("INDI: \(deviceName).\(vectorProperty.propertyName).\(elementName) base64 decode error.")
+                    return -1
+                }
+                
+                if format.hasSuffix(".z") {
+                    property.setFormat(String(format.dropLast(2)))
+                    
+                    do {
+                        let data = NSMutableData(data: property.blob)
+                        try data.decompress(using: .zlib)
+                        property.setSize(data.count)
+                        property.setBlob(blob: data as Data)
+                    } catch let error {
+                        print("INDI: \(deviceName).\(vectorProperty.propertyName).\(elementName) compression error. \(error)")
+                        return -1
+                    }
+                } else {
+                    property.setFormat(format)
+                }
+            }
+        }
+        
+        return 0
     }
 }
 
-// MARK: - Helper Method
-extension INDIBaseDevice {
-    /// Append new vector property group.
-    /// - Parameters:
-    ///  - groupName: vector proeprty gorup name.
-    private func appendVectorPropertyGroup(groupName: String) {
-        propertyGroups.append(groupName)
-    }
-
-    /// Append new vector property.
-    /// - Parameters:
-    ///  - vectorProperty: vector property.
-    private func appendVectorProperty(vectorProperty: INDIVectorProperty) {
-        vectorProperties.append(vectorProperty)
+// MARK: - Message Method
+public extension INDIBaseDevice {
+    func checkMessage(root: INDIProtocolElement) {
+        guard let message = root.getAttribute(name: "message") else { return }
+        
+        var finalMessage = ""
+        if let timestamp = root.getAttribute(name: "timestamp") {
+            finalMessage = "\(timestamp): \(message)"
+        } else {
+            let formatter = ISO8601DateFormatter()
+            finalMessage = "\(formatter.string(from: Date()).dropFirst()): \(message)"
+        }
+        
+        lock.withLock({
+            messageLog.append(finalMessage)
+        })
+        
+        delegate?.newMessage(sender: self, messageID: messageLog.count - 1)
     }
     
-    /// Append new message.
-    /// - Parameters:
-    ///  - message: message string.
-    private func appendMessage(message: String) {
-        messageQueue.append(message)
+    func messageQueue(index: Int) -> String {
+        assert(index < messageLog.count)
+        return lock.withLock({
+            return messageLog[index]
+        })
+    }
+    
+    func lastMessage() -> String {
+        assert(messageLog.count != 0)
+        return lock.withLock({
+            return messageLog.last!
+        })
     }
 }

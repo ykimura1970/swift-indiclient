@@ -2,7 +2,13 @@
 //  File.swift
 //  swift-indiclient
 //
-//  Created by 木村嘉男 on 2025/11/18.
+//  Created by Yoshio Kimura, Studio Parsec LLC on 2025/11/18.
 //
 
 import Foundation
+
+public extension StringProtocol {
+    func isAllWhitespace() -> Bool {
+        unicodeScalars.allSatisfy(CharacterSet.whitespacesAndNewlines.contains(_:))
+    }
+}

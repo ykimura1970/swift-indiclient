@@ -5,7 +5,7 @@
 //  Created by Yoshio Kimura, Studio Parsec LLC on 2024/10/01.
 //
 
-import Foundation
+import SwiftUI
 
 /// Property state.
 public enum INDIPropertyState: Int, Sendable {
@@ -30,6 +30,15 @@ public enum INDIPropertyState: Int, Sendable {
         case .Ok: "Ok"
         case .Busy: "Busy"
         case .Alert: "Alert"
+        }
+    }
+    
+    public func toColor() -> Color {
+        switch self {
+        case .Idle: .green
+        case .Ok: .red
+        case .Busy: .yellow
+        case .Alert: .orange
         }
     }
 }

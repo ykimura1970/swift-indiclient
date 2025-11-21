@@ -7,39 +7,53 @@
 
 import Foundation
 
-final public class INDIBlobVectorProperty: INDIVectorPropertyTemplate<INDIBlobProperty>, @unchecked Sendable {
-    // MARK: - Initializer
-    public init() {
-        super.init(deviceName: "", propertyName: "", propertyLabel: "", groupName: "", propertyPermission: .ReadOnly, timeout: 0.0, propertyState: .Idle, timestamp: "", propertyType: .INDIBlob)
+final public class INDIBlobVectorProperty: INDIVectorPropertyTemplate<INDIBlobProperty> {
+    // MARK: - Override Method
+    internal override func createNewCommand() -> INDIProtocolElement {
+        var root = createNewRootINDIProtocolElement()
+        let children = createNewChildrenINDIProtocolElement()
+        
+        if !children.isEmpty {
+            root.addChildren(contentOf: children)
+        }
+        
+        return root
     }
     
-    // MARK: - Override Method
-    public override func createNewCommand(newProperties: [Element]) -> String {
-        let elementRoot = XMLElement(name: "newBLOBVector")
-        elementRoot.addAttribute(createXMLAttribute(elementName: "device", stringValue: deviceName))
-        elementRoot.addAttribute(createXMLAttribute(elementName: "name", stringValue: propertyName))
+    internal override func createNewRootINDIProtocolElement() -> INDIProtocolElement {
+        var root = INDIProtocolElement(tagName: "newBLOBVector")
+        
+        root.addAttribute(attribute: INDIProtocolElement.Attribute(key: "device", value: deviceName))
+        root.addAttribute(attribute: INDIProtocolElement.Attribute(key: "name", value: propertyName))
         
         if !timestamp.isEmpty {
-            elementRoot.addAttribute(createXMLAttribute(elementName: "timestamp", stringValue: timestamp))
+            root.addAttribute(attribute: INDIProtocolElement.Attribute(key: "timestamp", value: timestamp))
         }
         
-        for property in newProperties {
-            let elementChild = XMLElement(name: "oneBLOB")
-            elementChild.addAttribute(createXMLAttribute(elementName: "name", stringValue: property.elementName))
-            elementChild.addAttribute(createXMLAttribute(elementName: "size", stringValue: "\(property.size)"))
+        return root
+    }
+    
+    internal override func createNewChildrenINDIProtocolElement() -> [INDIProtocolElement] {
+        var children = [INDIProtocolElement]()
+        
+        self.properties.forEach({ property in
+            var child = INDIProtocolElement(tagName: "oneBLOB")
+            child.addAttribute(attribute: INDIProtocolElement.Attribute(key: "name", value: property.elementName))
+            child.addAttribute(attribute: INDIProtocolElement.Attribute(key: "size", value: String(format: "%d", property.size)))
             
             if property.size == 0 {
-                elementChild.addAttribute(createXMLAttribute(elementName: "enclen", stringValue: "0"))
-                elementChild.addAttribute(createXMLAttribute(elementName: "format", stringValue: property.format))
+                child.addAttribute(attribute: INDIProtocolElement.Attribute(key: "enclen", value: "0"))
+                child.addAttribute(attribute: INDIProtocolElement.Attribute(key: "format", value: property.format))
             } else {
-                let data = property.blob.base64EncodedData()
-                elementChild.stringValue = String(data: data, encoding: .ascii)
-                elementChild.addAttribute(createXMLAttribute(elementName: "enclen", stringValue: "\(data.count)"))
-                elementChild.addAttribute(createXMLAttribute(elementName: "format", stringValue: property.format))
+                let data = property.blob.base64EncodedString()
+                child.addAttribute(attribute: INDIProtocolElement.Attribute(key: "enclen", value: String(format: "%d", data.count)))
+                child.addAttribute(attribute: INDIProtocolElement.Attribute(key: "format", value: property.format))
+                child.addStringValue(string: data)
             }
-            elementRoot.addChild(elementChild)
-        }
+            
+            children.append(child)
+        })
         
-        return elementRoot.xmlString
+        return children
     }
 }

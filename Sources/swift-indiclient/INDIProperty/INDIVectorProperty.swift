@@ -7,20 +7,20 @@
 
 import Foundation
 
-public class INDIVectorProperty: Identifiable, @unchecked Sendable {
+public class INDIVectorProperty: NSObject, NSCopying {
     // MARK: - Fundamental Property
-    private(set) public var deviceName: String
-    private(set) public var propertyName: String
-    private(set) public var propertyLabel: String
-    private(set) public var groupName: String
-    private(set) public var propertyPermission: INDIPropertyPermission
-    private(set) public var timeout: Double
-    private(set) public var propertyState: INDIPropertyState
-    private(set) public var timestamp: String
-    private(set) public var propertyType: INDIPropertyType
+    internal(set) public var deviceName: String
+    internal(set) public var propertyName: String
+    internal(set) public var propertyLabel: String
+    internal(set) public var groupName: String
+    internal(set) public var propertyPermission: INDIPropertyPermission
+    internal(set) public var timeout: Double
+    internal(set) public var propertyState: INDIPropertyState
+    internal(set) public var timestamp: String
+    internal(set) public var dynamic: Bool
 
     // MARK: - Initializer
-    public init(deviceName: String, propertyName: String, propertyLabel: String, groupName: String, propertyPermission: INDIPropertyPermission, timeout: Double, propertyState: INDIPropertyState, timestamp: String, parent: INDIVectorProperty? = nil, propertyType: INDIPropertyType = .INDIUnknown) {
+    public init(deviceName: String = "", propertyName: String = "", propertyLabel: String = "", groupName: String = "", propertyPermission: INDIPropertyPermission = .ReadOnly, timeout: Double = 0, propertyState: INDIPropertyState = .Idle, timestamp: String = "", dynamic: Bool = false) {
         self.deviceName = deviceName
         self.propertyName = propertyName
         self.propertyLabel = propertyLabel
@@ -29,7 +29,7 @@ public class INDIVectorProperty: Identifiable, @unchecked Sendable {
         self.timeout = timeout
         self.propertyState = propertyState
         self.timestamp = timestamp
-        self.propertyType = propertyType
+        self.dynamic = dynamic
     }
     
     // MARK: - Computed Property
@@ -45,12 +45,22 @@ public class INDIVectorProperty: Identifiable, @unchecked Sendable {
         }
     }
     
+    public var isDynamic: Bool {
+        get {
+            self.dynamic
+        }
+    }
+    
     // MARK: - Protocol Method
-    public static func == (lhs: INDIVectorProperty, rhs: INDIVectorProperty) -> Bool {
-        ObjectIdentifier(lhs) == ObjectIdentifier(rhs)
+    public func copy(with zone: NSZone? = nil) -> Any {
+        INDIVectorProperty(deviceName: self.deviceName, propertyName: self.propertyName, propertyLabel: self.propertyLabel, groupName: self.groupName, propertyPermission: self.propertyPermission, timeout: self.timeout, propertyState: self.propertyState, timestamp: self.timestamp, dynamic: self.dynamic)
     }
 
     // MARK: - Fundamental Method
+    public func setDynamic(dynamic: Bool) {
+        self.dynamic = dynamic
+    }
+    
     public func setDeviceName(_ name: String) {
         deviceName = name
     }
@@ -71,10 +81,12 @@ public class INDIVectorProperty: Identifiable, @unchecked Sendable {
         self.propertyPermission = propertyPermision
     }
     
-    public func setPropertyPermission(from string: String) -> Bool {
-        guard let propertyPermission = INDIPropertyPermission.propertyPermission(from: string) else { return false }
-        self.propertyPermission = propertyPermission
-        return true
+    public func setPropertyPermission(from string: String) {
+        if let propertyPermission = INDIPropertyPermission.propertyPermission(from: string) {
+            self.propertyPermission = propertyPermission
+        } else {
+            self.propertyPermission = .ReadOnly
+        }
     }
     
     public func setTimeout(_ timeout: Double) {
@@ -85,10 +97,12 @@ public class INDIVectorProperty: Identifiable, @unchecked Sendable {
         self.propertyState = propertyState
     }
     
-    public func setPropertyState(from string: String) -> Bool {
-        guard let propertyState = INDIPropertyState.propertyState(from: string) else { return false }
-        self.propertyState = propertyState
-        return true
+    public func setPropertyState(from stringPropertyState: String) {
+        if let propertyState = INDIPropertyState.propertyState(from: stringPropertyState) {
+            self.propertyState = propertyState
+        } else {
+            self.propertyState = .Idle
+        }
     }
     
     public func setTimestamp(_ timestamp: String) {
@@ -96,37 +110,29 @@ public class INDIVectorProperty: Identifiable, @unchecked Sendable {
     }
     
     public func isDeviceNameMatch(_ otherName: String) -> Bool {
-        deviceName == otherName
+        self.deviceName == otherName
     }
     
     public func isPropertyNameMatch(_ otherName: String) -> Bool {
-        propertyName == otherName
+        self.propertyName == otherName
     }
     
     public func isPropertyLabelMatch(_ otherLabel: String) -> Bool {
-        propertyLabel == otherLabel
+        self.propertyLabel == otherLabel
     }
     
-    public func isGroupName(_ otherName: String) -> Bool {
-        groupName == otherName
+    public func isGroupNameMatch(_ otherName: String) -> Bool {
+        self.groupName == otherName
     }
     
     public func clear() {
-        deviceName = ""
-        propertyName = ""
-        propertyLabel = ""
-        groupName = ""
-        propertyPermission = .ReadOnly
-        timeout = 0.0
-        propertyState = .Idle
-        timestamp = ""
-    }
-    
-    // MARK: - Helper Method
-    internal func createXMLAttribute(elementName: String, stringValue: String) -> XMLElement {
-        let element = XMLElement(kind: .attribute)
-        element.name = elementName
-        element.stringValue = stringValue
-        return element
+        self.deviceName = ""
+        self.propertyName = ""
+        self.propertyLabel = ""
+        self.groupName = ""
+        self.propertyPermission = .ReadOnly
+        self.timeout = 0.0
+        self.propertyState = .Idle
+        self.timestamp = ""
     }
 }

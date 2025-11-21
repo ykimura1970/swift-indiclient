@@ -6,49 +6,34 @@
 //
 
 import Foundation
-import Observation
-import os
+import Combine
 
-@Observable
-final public class INDITextProperty: INDIProperty, @unchecked Sendable {
+public class INDITextProperty: INDIProperty, ObservableObject {
     // MARK: - Original Property
-    private(set) public var text: String
-    @ObservationIgnored private let lock = OSAllocatedUnfairLock()
+    @Published internal(set) public var text: String
     
     // MARK: - Initializer
-    public init(elementName: String, elementLabel: String, text: String) {
+    public init(elementName: String, elementLabel: String, text: String, parent: INDIVectorProperty? = nil) {
         self.text = text
-        super.init(elementName: elementName, elementLabel: elementLabel)
+        super.init(elementName: elementName, elementLabel: elementLabel, parent: parent)
     }
     
     public convenience init() {
         self.init(elementName: "", elementLabel: "", text: "")
     }
     
-    // MARK: - Computed Property
-    public var vectorProperty: INDITextVectorProperty? {
-        get {
-            parent as? INDITextVectorProperty
-        }
-    }
-    
-    // MARK: - Protocol Method
-    public override func copy(with zone: NSZone? = nil) -> Any {
-        return INDITextProperty(elementName: self.elementName, elementLabel: self.elementLabel, text: self.text)
-    }
-    
     // MARK: - Original Method
     public func setText(_ text: String) {
-        lock.withLock({
-            self.text = text
-        })
+        self.text = text
     }
     
     // MARK: - Override Method
+    public override func copy(with zone: NSZone? = nil) -> Any {
+        INDITextProperty(elementName: self.elementName, elementLabel: self.elementLabel, text: self.text, parent: self.parent)
+    }
+    
     public override func clear() {
-        lock.withLock({
-            text = ""
-        })
+        self.text = ""
         super.clear()
     }
 }

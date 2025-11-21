@@ -6,49 +6,31 @@
 //
 
 import Foundation
-import Observation
-import os
+import Combine
 
-@Observable
-final public class INDINumberProperty: INDIProperty, @unchecked Sendable {
+public class INDINumberProperty: INDIProperty, ObservableObject {
     // MARK: - Original Property
-    @ObservationIgnored private(set) public var format: String
-    @ObservationIgnored private(set) public var min: Double
-    @ObservationIgnored private(set) public var max: Double
-    @ObservationIgnored private(set) public var step: Double
-    private(set) public var value: Double
-    @ObservationIgnored private let lock = OSAllocatedUnfairLock()
+    internal(set) public var format: String
+    internal(set) public var minValue: Double
+    internal(set) public var maxValue: Double
+    internal(set) public var stepValue: Double
+    @Published internal(set) public var value: Double
     
     // MARK: - Initializer
-    public init(elementName: String, elementLabel: String, format: String, min: Double, max: Double, step: Double, value: Double) {
+    public init(elementName: String = "", elementLabel: String = "", format: String = "", minValue: Double = 0, maxValue: Double = 0, stepValue: Double = 0, value: Double = 0, parent: INDIVectorProperty? = nil) {
         self.format = format
-        self.min = min
-        self.max = max
-        self.step = step
+        self.minValue = minValue
+        self.maxValue = maxValue
+        self.stepValue = stepValue
         self.value = value
-        super.init(elementName: elementName, elementLabel: elementLabel)
+        super.init(elementName: elementName, elementLabel: elementLabel, parent: parent)
     }
     
-    public convenience init() {
-        self.init(elementName: "", elementLabel: "", format: "", min: 0.0, max: 0.0, step: 0.0, value: 0.0)
-    }
-    
-    // MARK: - Computed Property
-    public var closedRange: ClosedRange<Double> {
+    // MARK: - Original Computed Property
+    public var range: ClosedRange<Double> {
         get {
-            min...max
+            minValue...maxValue
         }
-    }
-    
-    public var vectorProperty: INDINumberVectorProperty? {
-        get {
-            parent as? INDINumberVectorProperty
-        }
-    }
-    
-    // MARK: - Protocol Method
-    public override func copy(with zone: NSZone? = nil) -> Any {
-        INDINumberProperty(elementName: self.elementName, elementLabel: self.elementLabel, format: self.format, min: self.min, max: self.max, step: self.step, value: self.value)
     }
     
     // MARK: - Original Method
@@ -56,37 +38,33 @@ final public class INDINumberProperty: INDIProperty, @unchecked Sendable {
         self.format = format
     }
     
-    public func setMin(_ min: Double) {
-        self.min = min
+    public func setMin(_ minValue: Double) {
+        self.minValue = minValue
     }
     
-    public func setMax(_ max: Double) {
-        self.max = max
+    public func setMax(_ maxValue: Double) {
+        self.maxValue = maxValue
     }
     
-    public func setClosedRange(_ closedRange: ClosedRange<Double>) {
-        min = closedRange.lowerBound
-        max = closedRange.upperBound
-    }
-    
-    public func setStep(_ step: Double) {
-        self.step = step
+    public func setStep(_ stepValue: Double) {
+        self.stepValue = stepValue
     }
     
     public func setValue(_ value: Double) {
-        lock.withLock({
-            self.value = value
-        })
+        self.value = value
     }
     
     // MARK: - Override Method
+    public override func copy(with zone: NSZone? = nil) -> Any {
+        INDINumberProperty(elementName: self.elementName, elementLabel: self.elementLabel, format: self.format, minValue: self.minValue, maxValue: self.maxValue, stepValue: self.stepValue, value: self.value, parent: self.parent)
+    }
+    
     public override func clear() {
-        format = ""
-        min = 0.0
-        max = 0.0
-        step = 0.0
-        lock.withLock({
-            value = 0.0})
+        self.format = ""
+        self.minValue = 0
+        self.maxValue = 0
+        self.stepValue = 0
+        self.value = 0
         super.clear()
     }
 }

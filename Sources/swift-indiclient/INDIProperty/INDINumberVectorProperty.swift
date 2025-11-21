@@ -7,25 +7,47 @@
 
 import Foundation
 
-final public class INDINumberVectorProperty: INDIVectorPropertyTemplate<INDINumberProperty>, @unchecked Sendable {
-    // MARK: - Initialiazer
-    public init() {
-        super.init(deviceName: "", propertyName: "", propertyLabel: "", groupName: "", propertyPermission: .ReadOnly, timeout: 0.0, propertyState: .Idle, timestamp: "", propertyType: .INDINumber)
+final public class INDINumberVectorProperty: INDIVectorPropertyTemplate<INDINumberProperty> {
+    // MARK: - Override Method
+    public override func copy(with zone: NSZone? = nil) -> Any {
+        let copiedProperty = self.properties.map({ $0.copy() as! INDINumberProperty })
+        
+        let newNumberVectorProperty = INDINumberVectorProperty(deviceName: self.deviceName, propertyName: self.propertyName, propertyLabel: self.propertyLabel, groupName: self.groupName, propertyPermission: self.propertyPermission, timeout: self.timeout, propertyState: self.propertyState, timestamp: self.timestamp, dynamic: self.dynamic)
+        newNumberVectorProperty.appendProperties(contentOf: copiedProperty)
+        
+        return newNumberVectorProperty
     }
     
-    // MARK: - Override Method
-    public override func createNewCommand(newProperties: [Element]) -> String {
-        let elementRoot = XMLElement(name: "newNumberVector")
-        elementRoot.addAttribute(createXMLAttribute(elementName: "device", stringValue: deviceName))
-        elementRoot.addAttribute(createXMLAttribute(elementName: "name", stringValue: propertyName))
+    internal override func createNewCommand() -> INDIProtocolElement {
+        var root = createNewRootINDIProtocolElement()
+        let children = createNewChildrenINDIProtocolElement()
         
-        for property in newProperties {
-            let elementChild = XMLElement(name: "oneNumber")
-            elementChild.stringValue = String(property.value)
-            elementChild.addAttribute(createXMLAttribute(elementName: "name", stringValue: property.elementName))
-            elementRoot.addChild(elementChild)
+        if !children.isEmpty {
+            root.addChildren(contentOf: children)
         }
         
-        return elementRoot.xmlString
+        return root
+    }
+    
+    internal override func createNewRootINDIProtocolElement() -> INDIProtocolElement {
+        var root = INDIProtocolElement(tagName: "newNumberVector")
+        
+        root.addAttribute(attribute: INDIProtocolElement.Attribute(key: "device", value: deviceName))
+        root.addAttribute(attribute: INDIProtocolElement.Attribute(key: "name", value: propertyName))
+        
+        return root
+    }
+    
+    internal override func createNewChildrenINDIProtocolElement() -> [INDIProtocolElement] {
+        var children = [INDIProtocolElement]()
+        
+        self.properties.forEach({ property in
+            var element = INDIProtocolElement(tagName: "oneNumber")
+            element.addAttribute(attribute: INDIProtocolElement.Attribute(key: "name", value: property.elementName))
+            element.addStringValue(string: String(format: "      %.20g", property.value))
+            children.append(element)
+        })
+        
+        return children
     }
 }

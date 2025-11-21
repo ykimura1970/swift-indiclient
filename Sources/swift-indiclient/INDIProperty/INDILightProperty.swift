@@ -5,64 +5,48 @@
 //  Created by Yoshio Kimura, Studio Parsec LLC on 2024/11/27.
 //
 
-import Foundation
-import Observation
-import os
+import SwiftUI
+import Combine
 
-@Observable
-final public class INDILightProperty: INDIProperty, @unchecked Sendable {
+public class INDILightProperty: INDIProperty, ObservableObject {
     // MARK: - Original Property
-    private(set) public var lightState: INDIPropertyState
-    @ObservationIgnored private let lock = OSAllocatedUnfairLock()
+    @Published internal(set) public var lightState: INDIPropertyState
     
     // MARK: - Initializer
-    public init(elementName: String, elementLabel: String, lightState: INDIPropertyState) {
+    public init(elementName: String = "", elementLabel: String = "", lightState: INDIPropertyState = .Ok, parent: INDIVectorProperty? = nil) {
         self.lightState = lightState
-        super.init(elementName: elementName, elementLabel: elementLabel)
+        super.init(elementName: elementName, elementLabel: elementLabel, parent: parent)
     }
     
-    public convenience init() {
-        self.init(elementName: "", elementLabel: "", lightState: .Idle)
-    }
-    
-    // MARK: - Computed Property
+    // MARK: - Original Computed Property
     var lightStateAsString: String {
         get {
-            lightState.toString()
+            self.lightState.toString()
         }
     }
     
-    var vectorProperty: INDILightVectorProperty? {
+    var lightStateAsColor: Color {
         get {
-            parent as? INDILightVectorProperty
+            self.lightState.toColor()
         }
-    }
-    
-    // MARK: - Protocol Method
-    public override func copy(with zone: NSZone? = nil) -> Any {
-        INDILightProperty(elementName: self.elementName, elementLabel: self.elementLabel, lightState: self.lightState)
     }
     
     // MARK: - Original Method
     public func setLightState(lightState: INDIPropertyState) {
-        lock.withLock({
-            self.lightState = lightState
-        })
+        self.lightState = lightState
     }
     
-    public func setLightState(from string: String) -> Bool {
-        guard let lightState = INDIPropertyState.propertyState(from: string) else { return false }
-        lock.withLock({
+    public func setLightState(from stringLightState: String) {
+        if let lightState = INDIPropertyState.propertyState(from: stringLightState) {
             self.lightState = lightState
-        })
-        return true
+        } else {
+            self.lightState = .Ok
+        }
     }
     
     // MARK: - Override Method
     public override func clear() {
-        lock.withLock({
-            lightState = .Idle
-        })
+        self.lightState = .Idle
         super.clear()
     }
 }

@@ -16,7 +16,8 @@ let package = Package(
             targets: ["INDIClient"]),
     ],
     dependencies: [
-        .package(url: "https://github.com/apple/swift-collections.git", from: "1.1.4")
+        .package(url: "https://github.com/apple/swift-collections.git", .upToNextMajor(from: "1.1.4")),
+        .package(url: "https://github.com/apple/swift-nio.git", .upToNextMajor(from: "2.89.0"))
     ],
     targets: [
         // Targets are the basic building blocks of a package, defining a module or a test suite.
@@ -25,7 +26,12 @@ let package = Package(
             name: "INDIClient",
             dependencies: [
                 .product(name: "Collections", package: "swift-collections"),
-                .product(name: "DequeModule", package: "swift-collections")
+                .product(name: "DequeModule", package: "swift-collections"),
+                .product(name: "NIOCore", package: "swift-nio"),
+                .product(name: "NIOConcurrencyHelpers", package: "swift-nio"),
+                .product(name: "NIOFoundationCompat", package: "swift-nio"),
+                .product(name: "NIOPosix", package: "swift-nio"),
+                .product(name: "NIOWebSocket", package: "swift-nio")
             ]
         )
     ],

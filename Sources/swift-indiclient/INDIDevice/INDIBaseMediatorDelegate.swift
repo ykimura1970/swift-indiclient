@@ -7,34 +7,61 @@
 
 import Foundation
 
-public protocol INDIDeviceMediatorDelegate: AnyObject, Sendable {
+public protocol INDIBaseMediatorDelegate: AnyObject {
+    /// Emmited when a new device is created from INDI server.
+    /// - Parameters:
+    ///  - sender: Instance of the delegating object that inherits INDIAbstractClient.
+    ///  - baseDevice: A newly created instance of INDIBaseDevice.
+    func newDevice(sender: INDIBaseDevice)
+    
+    /// Emmited when a device is deleted from INDI server.
+    /// - Parameters:
+    ///  - sender: Instance of the delegating object that inherits INDIAbstractClient.
+    ///  - baseDevice: The instance of INDIBaseDevice to be removed.
+    func removeDevice(sender: INDIBaseDevice)
+
     /// Emmited when a new vector property is created for an INDI driver.
     /// - Parameters:
     ///  - sender: The instance of INDIBaseDevice from which the transfer originates.
     ///  - vectorProperty: any INDIVectorProperty instance.
     func newVectorProperty(sender: INDIBaseDevice, vectorProperty: INDIVectorProperty)
     
-    /// Emmited when a new property value arrives from INDI Server.
-    /// - Parameters:
-    ///  - sender: The instance of INDIBaseDevice from which the transfer originates.
-    ///  - vectorProperty: any INDIVectorProperty instance
-    func updateVectorProperty(sender: INDIBaseDevice, vectorProperty: INDIVectorProperty)
-    
-    /// Emmmited when a vector proeprty is deleted for an INDI Server.
+    /// Emmited when a new properry value arrives from INDI server.
     /// - Parameters:
     ///  - sender: The instance of INDIBaseDevice from which the transfer originates.
     ///  - vectorProperty: any INDIVectorProperty instance.
+    func updateVectorProperty(sender: INDIBaseDevice, vectorProperty: INDIVectorProperty)
+    
+    /// Emmited when a vector property is deleted for an INDI server.
+    /// - Parameters:
+    ///  - sender: The instance of INDIBaseDevice form which the transfer originates.
+    ///  - vectorProperty: any INDIVectorProperty instance.
     func removeVectorProperty(sender: INDIBaseDevice, vectorProperty: INDIVectorProperty)
     
-    /// Emmited when a new message arrives from INDI Server.
+    /// Emmited when a new message arrives from INDI server.
     /// - Parameters:
-    ///   - sender: The instance of INDIBaseDevice from witch the transfer originates.
-    ///   - messageID: ID of the message that can be used to retrieve the message from the device's messageQueue() function.
+    ///  - sender: The instance of INDIBaseDevice from which the transfer originates.
+    ///  - messageID: ID of the message that can be used to  retrieve the message from the device's messageQueue() function.
     func newMessage(sender: INDIBaseDevice, messageID: Int)
+
+    /// Emmited when the server is connected.
+    /// - Parameters:
+    ///  - sender: Instance of the delegating object that inherits INDIAbstractClient.
+    func serverConnected(sender: INDIAbstractClient)
+
+    /// Emmited when the server gets disconnected.
+    /// - Parameters:
+    ///  - sender: Instance of the delegating objec that inherits INDIAbstractClient.
+    ///  - exitCode: 0 if client was requested to disconnect from server. -1 if connection to server is terminated due to remote server disconnection.
+    func serverDisconnected(sender: INDIAbstractClient, exitCode: Int)
 }
 
 // MARK: - Default Implement
-public extension INDIDeviceMediatorDelegate {
+public extension INDIBaseMediatorDelegate {
+    func newDevice(sender: INDIBaseDevice) { }
+    
+    func removeDevice(sender: INDIBaseDevice) { }
+    
     func newVectorProperty(sender: INDIBaseDevice, vectorProperty: INDIVectorProperty) { }
     
     func updateVectorProperty(sender: INDIBaseDevice, vectorProperty: INDIVectorProperty) { }
@@ -42,4 +69,8 @@ public extension INDIDeviceMediatorDelegate {
     func removeVectorProperty(sender: INDIBaseDevice, vectorProperty: INDIVectorProperty) { }
     
     func newMessage(sender: INDIBaseDevice, messageID: Int) { }
+    
+    func serverConnected(sender: INDIAbstractClient) { }
+    
+    func serverDisconnected(sender: INDIAbstractClient, exitCode: Int) { }
 }

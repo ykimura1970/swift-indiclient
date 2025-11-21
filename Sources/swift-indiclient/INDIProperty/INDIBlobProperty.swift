@@ -6,40 +6,22 @@
 //
 
 import Foundation
-import Observation
-import os
+import Combine
 
-final public class INDIBlobProperty: INDIProperty, @unchecked Sendable {
+public class INDIBlobProperty: INDIProperty {
     // MARK: - Original Property
-    private(set) public var format: String
-    private(set) public var blob: Data
-    private(set) public var blobLength: Int
-    private(set) public var size: Int
-    @ObservationIgnored private let lock = OSAllocatedUnfairLock()
+    internal(set) public var format: String
+    internal(set) public var blob: Data
+    internal(set) public var blobLength: Int
+    internal(set) public var size: Int
     
     // MARK: - Initializer
-    public init(elementName: String, elementLabel: String, format: String, blob: Data, blobLength: Int, size: Int) {
+    public init(elementName: String = "", elementLabel: String = "", format: String = "", blob: Data = Data(), blobLength: Int = 0, size: Int = 0, parent: INDIVectorProperty? = nil) {
         self.format = format
         self.blob = blob
         self.blobLength = blobLength
         self.size = size
-        super.init(elementName: elementName, elementLabel: elementLabel)
-    }
-    
-    public convenience init() {
-        self.init(elementName: "", elementLabel: "", format: "", blob: Data(), blobLength: 0, size: 0)
-    }
-    
-    // MARK: - Computed Property
-    public var vectorProperty: INDIBlobVectorProperty? {
-        get {
-            parent as? INDIBlobVectorProperty
-        }
-    }
-    
-    // MARK: - Override Method
-    public override func copy(with zone: NSZone? = nil) -> Any {
-        INDIBlobProperty(elementName: self.elementName, elementLabel: self.elementLabel, format: self.format, blob: self.blob, blobLength: self.blobLength, size: self.size)
+        super.init(elementName: elementName, elementLabel: elementLabel, parent: parent)
     }
     
     // MARK: - Original Method
@@ -48,27 +30,23 @@ final public class INDIBlobProperty: INDIProperty, @unchecked Sendable {
     }
     
     public func setBlob(blob: Data) {
-        lock.withLock({
-            self.blob = blob
-        })
+        self.blob = blob
     }
     
     public func setBlobLength(_ blobLength: Int) {
         self.blobLength = blobLength
     }
     
-    public func setSize(size: Int) {
+    public func setSize(_ size: Int) {
         self.size = size
     }
     
     // MARK: - Override Method
     public override func clear() {
-        format = ""
-        lock.withLock({
-            blob = Data()
-        })
-        blobLength = 0
-        size = 0
+        self.format = ""
+        self.blob = Data()
+        self.blobLength = 0
+        self.size = 0
         super.clear()
     }
 }

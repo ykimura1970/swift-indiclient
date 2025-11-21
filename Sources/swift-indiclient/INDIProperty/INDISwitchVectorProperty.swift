@@ -7,21 +7,17 @@
 
 import Foundation
 
-final public class INDISwitchVectorProperty: INDIVectorPropertyTemplate<INDISwitchProperty>, @unchecked Sendable {
+public class INDISwitchVectorProperty: INDIVectorPropertyTemplate<INDISwitchProperty> {
     // MARK: - Original Property
-    private(set) public var switchVectorPropertyRule: INDISwitchVectorPropertyRule
+    internal(set) public var switchVectorPropertyRule: INDISwitchVectorPropertyRule
     
     // MARK: - Initializer
-    public init(deviceName: String, propertyName: String, propertyLabel: String, groupName: String, propertyPermission: INDIPropertyPermission, timeout: Double, propertyState: INDIPropertyState, switchVectorPropertyRule: INDISwitchVectorPropertyRule, timestamp: String) {
+    public init(deviceName: String = "", propertyName: String = "", propertyLabel: String = "", groupName: String = "", propertyPermission: INDIPropertyPermission = .ReadOnly, timeout: Double = 0, propertyState: INDIPropertyState = .Idle, timestamp: String = "", switchVectorPropertyRule: INDISwitchVectorPropertyRule = .OneOfMany, dynamic: Bool = false) {
         self.switchVectorPropertyRule = switchVectorPropertyRule
-        super.init(deviceName: deviceName, propertyName: propertyName, propertyLabel: propertyLabel, groupName: groupName, propertyPermission: propertyPermission, timeout: timeout, propertyState: propertyState, timestamp: timestamp, propertyType: .INDISwitch)
+        super.init(deviceName: deviceName, propertyName: propertyName, propertyLabel: propertyLabel, groupName: groupName, propertyPermission: propertyPermission, timeout: timeout, propertyState: propertyState, timestamp: timestamp, dynamic: dynamic)
     }
     
-    public convenience init() {
-        self.init(deviceName: "", propertyName: "", propertyLabel: "", groupName: "", propertyPermission: .ReadOnly, timeout: 0.0, propertyState: .Idle, switchVectorPropertyRule: .OneOfMany, timestamp: "")
-    }
-    
-    // MARK: - Computed Property
+    // MARK: - Original Computed Property
     public var switchVectorPropertyRuleAsString: String {
         get {
             switchVectorPropertyRule.toString()
@@ -29,55 +25,84 @@ final public class INDISwitchVectorProperty: INDIVectorPropertyTemplate<INDISwit
     }
     
     // MARK: - Original Method
-    public func setSwitchVectorPropertyRule(_ rule: INDISwitchVectorPropertyRule) {
-        switchVectorPropertyRule = rule
+    public func setSwitchVectorPropertyRule(_ switchVectorPropertyRule: INDISwitchVectorPropertyRule) {
+        self.switchVectorPropertyRule = switchVectorPropertyRule
     }
     
-    public func setSwitchVectorPropertyRule(_ string: String) -> Bool {
-        guard let rule = INDISwitchVectorPropertyRule.switchVectorPropertyRule(from: string) else { return false }
-        switchVectorPropertyRule = rule
-        return true
-    }
-    
-    public func reset() {
-        for property in properties {
-            property.setSwitchState(.Off)
+    public func setSwitchVectorPropertyRule(_ stringSwitchVectorPropertyRule: String){
+        if let switchVectorPropertyRule = INDISwitchVectorPropertyRule.switchVectorPropertyRule(from: stringSwitchVectorPropertyRule) {
+            self.switchVectorPropertyRule = switchVectorPropertyRule
+        } else {
+            self.switchVectorPropertyRule = .OneOfMany
         }
     }
     
+    public func reset() {
+        self.properties.forEach({ property in
+            property.setSwitchState(.Off)
+        })
+    }
+    
     public func findOnSwitch() -> INDISwitchProperty? {
-        properties.first(where: { $0.switchStateAsBool })
+        self.properties.first(where: { $0.switchStateAsBool })
     }
     
     public func findOnSwitchIndex() -> Int {
-        properties.firstIndex(where: { $0.switchStateAsBool }) ?? -1
+        self.properties.firstIndex(where: { $0.switchStateAsBool }) ?? -1
     }
     
     // MARK: - Override Method
+    public override func copy(with zone: NSZone? = nil) -> Any {
+        let copiedProperties = self.properties.map({ $0.copy() as! INDISwitchProperty })
+        
+        let newSwitchVectorProperty = INDISwitchVectorProperty(deviceName: self.deviceName, propertyName: self.propertyName, propertyLabel: self.propertyLabel, groupName: self.groupName, propertyPermission: self.propertyPermission, timeout: self.timeout, propertyState: self.propertyState, timestamp: self.timestamp, switchVectorPropertyRule: self.switchVectorPropertyRule, dynamic: self.dynamic)
+        newSwitchVectorProperty.appendProperties(contentOf: copiedProperties)
+        
+        return newSwitchVectorProperty
+    }
+    
     public override func clear() {
         switchVectorPropertyRule = .OneOfMany
         super.clear()
     }
     
-    public override func createNewCommand(newProperties: [Element]) -> String {
-        let elementRoot = XMLElement(name: "newSwitchVector")
-        elementRoot.addAttribute(createXMLAttribute(elementName: "device", stringValue: deviceName))
-        elementRoot.addAttribute(createXMLAttribute(elementName: "name", stringValue: propertyName))
+    internal override func createNewCommand() -> INDIProtocolElement {
+        var root = createNewRootINDIProtocolElement()
+        let children = createNewChildrenINDIProtocolElement()
         
-        if switchVectorPropertyRule == .OneOfMany, let onSwitch = newProperties.first(where: { $0.switchStateAsBool }) {
-            let elementChild = XMLElement(name: "oneSwitch")
-            elementChild.stringValue = onSwitch.switchStateAsString
-            elementChild.addAttribute(createXMLAttribute(elementName: "name", stringValue: onSwitch.elementName))
-            elementRoot.addChild(elementChild)
-        } else {
-            for property in newProperties {
-                let elementChild = XMLElement(name: "oneSwitch")
-                elementChild.stringValue = property.switchStateAsString
-                elementChild.addAttribute(createXMLAttribute(elementName: "name", stringValue: property.elementName))
-                elementRoot.addChild(elementChild)
-            }
+        if !children.isEmpty {
+            root.addChildren(contentOf: children)
         }
         
-        return elementRoot.xmlString
+        return root
+    }
+    
+    internal override func createNewRootINDIProtocolElement() -> INDIProtocolElement {
+        var root = INDIProtocolElement(tagName: "newSwitchVector")
+        
+        root.addAttribute(attribute: INDIProtocolElement.Attribute(key: "device", value: deviceName))
+        root.addAttribute(attribute: INDIProtocolElement.Attribute(key: "name", value: propertyName))
+        
+        return root
+    }
+    
+    internal override func createNewChildrenINDIProtocolElement() -> [INDIProtocolElement] {
+        var children = [INDIProtocolElement]()
+        
+        if switchVectorPropertyRule == .OneOfMany, let property = findOnSwitch() {
+            var child = INDIProtocolElement(tagName: "oneSwitch")
+            child.addAttribute(attribute: INDIProtocolElement.Attribute(key: "name", value: property.elementName))
+            child.addStringValue(string: property.switchStateAsString)
+            children.append(child)
+        } else {
+            self.properties.forEach({ property in
+                var child = INDIProtocolElement(tagName: "oneSwitch")
+                child.addAttribute(attribute: INDIProtocolElement.Attribute(key: "name", value: property.elementName))
+                child.addStringValue(string: property.switchStateAsString)
+                children.append(child)
+            })
+        }
+        
+        return children
     }
 }
