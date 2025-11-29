@@ -47,13 +47,13 @@ public protocol INDIBaseMediatorDelegate: AnyObject {
     /// Emmited when the server is connected.
     /// - Parameters:
     ///  - sender: Instance of the delegating object that inherits INDIAbstractClient.
-    func serverConnected(sender: INDIAbstractClient)
+    func serverConnected()
 
     /// Emmited when the server gets disconnected.
     /// - Parameters:
     ///  - sender: Instance of the delegating objec that inherits INDIAbstractClient.
     ///  - exitCode: 0 if client was requested to disconnect from server. -1 if connection to server is terminated due to remote server disconnection.
-    func serverDisconnected(sender: INDIAbstractClient, exitCode: Int)
+    func serverDisconnected(exitCode: Int)
 }
 
 // MARK: - Default Implement
@@ -70,7 +70,7 @@ public extension INDIBaseMediatorDelegate {
     
     func newMessage(sender: INDIBaseDevice, messageID: Int) { }
     
-    func serverConnected(sender: INDIAbstractClient) { }
+    func serverConnected() { }
     
-    func serverDisconnected(sender: INDIAbstractClient, exitCode: Int) { }
+    func serverDisconnected(exitCode: Int) { }
 }
