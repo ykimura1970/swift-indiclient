@@ -13,7 +13,7 @@ internal import NIOPosix
 
 public class INDISocket: @unchecked Sendable {
     // MARK: - Fundamental Property
-    internal var parent: INDIAbstractClient?
+    internal var parent: INDIBaseClient?
     internal let lock = NIOLock()
     internal let group: MultiThreadedEventLoopGroup
     internal var channel: Channel?
@@ -26,7 +26,7 @@ public class INDISocket: @unchecked Sendable {
     }
     
     // MARK: - Fundamental Method
-    public func setParent(_ parent: INDIAbstractClient) {
+    public func setParent(_ parent: INDIBaseClient) {
         self.parent = parent
     }
     
