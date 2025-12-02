@@ -108,6 +108,19 @@ open class INDIBaseClient: INDIBaseMediatorDelegate {
         setDriverConnection(deviceName: deviceName, status: false)
     }
     
+    public func setServer(hostname: String, port: Int) {
+        self.hostname = hostname
+        self.port = port
+    }
+    
+    public func setConnectionTimeout(seconds: Float) {
+        self.timeout = seconds
+    }
+    
+    public func setVerbose(enable: Bool) {
+        self.verbose = enable
+    }
+    
     /// Add a device to the watch list.
     /// - Parameters:
     ///  - deviceName: Device to watch for.
