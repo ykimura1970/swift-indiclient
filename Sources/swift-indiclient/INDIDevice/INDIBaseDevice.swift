@@ -17,13 +17,13 @@ public class INDIBaseDevice {
         case DispatchError      = -4    // Dispatching command to driver failed.
     }
     
-    public enum INDIWatch: Int, Sendable {
+    public enum INDIWatch: Int {
         case WatchNew = 0       // Applies to discovered properties only.
         case WatchUpdate        // Applies to updated properties only.
         case WatchNewOrUpdate   // Applies when a property appears or is updated, i.e. both of the above.
     }
     
-    public enum INDIDriverInterface: Int, Sendable {
+    public enum INDIDriverInterface: Int {
         case GeneralInterface           = 0b00000000000000000000    // Default interface for all INDI devices.
         case TelescopeInterface         = 0b00000000000000000001    // Telescope interface, must subclass INDI Telescope.
         case CCDInterface               = 0b00000000000000000010    // CCD interface, must subclass INDI CCD.

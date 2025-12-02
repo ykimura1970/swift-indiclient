@@ -60,7 +60,7 @@ open class INDIBaseClient: INDIBaseMediatorDelegate {
         
         clear()
         serverConnected.store(true, ordering: .relaxed)
-        delegate?.serverConnected(sender: self)
+        delegate?.serverConnected()
         sendGetProperties()
         
         return true
@@ -75,7 +75,7 @@ open class INDIBaseClient: INDIBaseMediatorDelegate {
         }
         
         let result = socket.disconnectFromHost()
-        delegate?.serverDisconnected(sender: self, exitCode: exitCode)
+        delegate?.serverDisconnected(exitCode: exitCode)
         
         return result
     }
