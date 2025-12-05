@@ -7,7 +7,7 @@
 
 import Foundation
 
-class INDIWatchDeviceProperty {
+final class INDIWatchDeviceProperty {
     struct INDIDeviceInfo {
         var device: INDIBaseDevice?
         var properties: Set<String> = []

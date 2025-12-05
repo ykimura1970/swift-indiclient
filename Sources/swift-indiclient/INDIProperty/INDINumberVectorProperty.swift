@@ -7,13 +7,18 @@
 
 import Foundation
 
-final public class INDINumberVectorProperty: INDIVectorPropertyTemplate<INDINumberProperty> {
+final public class INDINumberVectorProperty: INDIVectorPropertyTemplate<INDINumberProperty>, @unchecked Sendable {
     // MARK: - Override Method
     public override func copy(with zone: NSZone? = nil) -> Any {
-        let copiedProperty = self.properties.map({ $0.copy() as! INDINumberProperty })
+        var copiedProperties = [INDINumberProperty]()
         
-        let newNumberVectorProperty = INDINumberVectorProperty(deviceName: self.deviceName, propertyName: self.propertyName, propertyLabel: self.propertyLabel, groupName: self.groupName, propertyPermission: self.propertyPermission, timeout: self.timeout, propertyState: self.propertyState, timestamp: self.timestamp, dynamic: self.dynamic)
-        newNumberVectorProperty.appendProperties(contentOf: copiedProperty)
+        let newNumberVectorProperty = lock.withLock({
+            copiedProperties = self.properties.map({ $0.copy() as! INDINumberProperty })
+            
+            return INDINumberVectorProperty(deviceName: self.deviceName, propertyName: self.propertyName, propertyLabel: self.propertyLabel, groupName: self.groupName, propertyPermission: self.propertyPermission, timeout: self.timeout, propertyState: self.propertyState, timestamp: self.timestamp, dynamic: self.dynamic)
+        })
+        
+        newNumberVectorProperty.appendProperties(contentOf: copiedProperties)
         
         return newNumberVectorProperty
     }
@@ -41,11 +46,13 @@ final public class INDINumberVectorProperty: INDIVectorPropertyTemplate<INDINumb
     internal override func createNewChildrenINDIProtocolElement() -> [INDIProtocolElement] {
         var children = [INDIProtocolElement]()
         
-        self.properties.forEach({ property in
-            var element = INDIProtocolElement(tagName: "oneNumber")
-            element.addAttribute(attribute: INDIProtocolElement.Attribute(key: "name", value: property.elementName))
-            element.addStringValue(string: String(format: "      %.20g", property.value))
-            children.append(element)
+        lock.withLock({
+            self.properties.forEach({ property in
+                var element = INDIProtocolElement(tagName: "oneNumber")
+                element.addAttribute(attribute: INDIProtocolElement.Attribute(key: "name", value: property.elementName))
+                element.addStringValue(string: String(format: "      %.20g", property.value))
+                children.append(element)
+            })
         })
         
         return children

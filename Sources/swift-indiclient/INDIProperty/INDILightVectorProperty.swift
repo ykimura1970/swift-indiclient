@@ -5,6 +5,9 @@
 //  Created by Yoshio Kimura, Studio Parsec LLC on 2024/11/27.
 //
 
+import Foundation
+internal import NIOConcurrencyHelpers
+
 final public class INDILightVectorProperty: INDIVectorPropertyTemplate<INDILightProperty>, @unchecked Sendable {
     // MARK: - Initializer
     public init(deviceName: String = "", propertyName: String = "", propertyLabel: String = "", groupName: String = "", timestamp: String = "", dynamic: Bool = false) {

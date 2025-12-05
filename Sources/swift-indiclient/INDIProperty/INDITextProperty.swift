@@ -7,8 +7,9 @@
 
 import Foundation
 import Combine
+internal import NIOConcurrencyHelpers
 
-public class INDITextProperty: INDIProperty, ObservableObject {
+final public class INDITextProperty: INDIProperty, ObservableObject, @unchecked Sendable {
     // MARK: - Original Property
     @Published internal(set) public var text: String
     
@@ -24,16 +25,22 @@ public class INDITextProperty: INDIProperty, ObservableObject {
     
     // MARK: - Original Method
     public func setText(_ text: String) {
-        self.text = text
+        lock.withLock({
+            self.text = text
+        })
     }
     
     // MARK: - Override Method
     public override func copy(with zone: NSZone? = nil) -> Any {
-        INDITextProperty(elementName: self.elementName, elementLabel: self.elementLabel, text: self.text, parent: self.parent)
+        lock.withLock({
+            INDITextProperty(elementName: self.elementName, elementLabel: self.elementLabel, text: self.text, parent: self.parent)
+        })
     }
     
     public override func clear() {
-        self.text = ""
+        lock.withLock({
+            self.text = ""
+        })
         super.clear()
     }
 }

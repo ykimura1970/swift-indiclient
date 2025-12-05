@@ -6,8 +6,9 @@
 //
 
 import Foundation
+internal import NIOConcurrencyHelpers
 
-public class INDITextVectorProperty: INDIVectorPropertyTemplate<INDITextProperty> {
+final public class INDITextVectorProperty: INDIVectorPropertyTemplate<INDITextProperty>, @unchecked Sendable {
     // MARK: - Override Method
     internal override func createNewCommand() -> INDIProtocolElement {
         var root = createNewRootINDIProtocolElement()
@@ -32,11 +33,13 @@ public class INDITextVectorProperty: INDIVectorPropertyTemplate<INDITextProperty
     internal override func createNewChildrenINDIProtocolElement() -> [INDIProtocolElement] {
         var children = [INDIProtocolElement]()
         
-        self.properties.forEach({ property in
-            var child = INDIProtocolElement(tagName: "oneText")
-            child.addAttribute(attribute: INDIProtocolElement.Attribute(key: "name", value: property.elementName))
-            child.addStringValue(string: property.text)
-            children.append(child)
+        lock.withLock({
+            self.properties.forEach({ property in
+                var child = INDIProtocolElement(tagName: "oneText")
+                child.addAttribute(attribute: INDIProtocolElement.Attribute(key: "name", value: property.elementName))
+                child.addStringValue(string: property.text)
+                children.append(child)
+            })
         })
         
         return children

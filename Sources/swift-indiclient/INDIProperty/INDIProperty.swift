@@ -6,12 +6,14 @@
 //
 
 import Foundation
+internal import NIOConcurrencyHelpers
 
-public class INDIProperty: NSObject, NSCopying, Identifiable {
+public class INDIProperty: NSObject, NSCopying, Identifiable, @unchecked Sendable {
     // MARK: - Fundamental Property
-    internal(set) public var elementName: String
-    internal(set) public var elementLabel: String
-    internal(set) public var parent: INDIVectorProperty?
+    internal var elementName: String
+    internal var elementLabel: String
+    internal var parent: INDIVectorProperty?
+    internal let lock: NIOLock = NIOLock()
     
     // MARK: - Initializer
     public init(elementName: String = "", elementLabel: String = "", parent: INDIVectorProperty? = nil) {
@@ -36,6 +38,14 @@ public class INDIProperty: NSObject, NSCopying, Identifiable {
     
     public func setElementLabel(_ label: String) {
         self.elementLabel = label
+    }
+    
+    public func getElementName() -> String {
+        self.elementName
+    }
+    
+    public func getElementLabel() -> String {
+        self.elementLabel
     }
     
     public func isElementNameMatch(_ otherName: String) -> Bool {

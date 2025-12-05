@@ -7,13 +7,14 @@
 
 import Foundation
 import Combine
+internal import NIOConcurrencyHelpers
 
-public class INDINumberProperty: INDIProperty, ObservableObject {
+final public class INDINumberProperty: INDIProperty, ObservableObject, @unchecked Sendable {
     // MARK: - Original Property
-    internal(set) public var format: String
-    internal(set) public var minValue: Double
-    internal(set) public var maxValue: Double
-    internal(set) public var stepValue: Double
+    internal var format: String
+    internal var minValue: Double
+    internal var maxValue: Double
+    internal var stepValue: Double
     @Published internal(set) public var value: Double
     
     // MARK: - Initializer
@@ -29,7 +30,17 @@ public class INDINumberProperty: INDIProperty, ObservableObject {
     // MARK: - Original Computed Property
     public var range: ClosedRange<Double> {
         get {
-            minValue...maxValue
+            lock.withLock({
+                self.minValue...self.maxValue
+            })
+        }
+    }
+    
+    public var minMaxStep: (minValue: Double, maxValue: Double, stepValue: Double) {
+        get {
+            lock.withLock({
+                (self.minValue, self.maxValue, self.stepValue)
+            })
         }
     }
     
@@ -39,11 +50,15 @@ public class INDINumberProperty: INDIProperty, ObservableObject {
     }
     
     public func setMin(_ minValue: Double) {
-        self.minValue = minValue
+        lock.withLock({
+            self.minValue = minValue
+        })
     }
     
     public func setMax(_ maxValue: Double) {
-        self.maxValue = maxValue
+        lock.withLock({
+            self.maxValue = maxValue
+        })
     }
     
     public func setStep(_ stepValue: Double) {
@@ -51,20 +66,54 @@ public class INDINumberProperty: INDIProperty, ObservableObject {
     }
     
     public func setValue(_ value: Double) {
-        self.value = value
+        lock.withLock({
+            self.value = value
+        })
+    }
+    
+    public func getFormat() -> String {
+        self.format
+    }
+    
+    public func getMin() -> Double {
+        lock.withLock({
+            self.minValue
+        })
+    }
+    
+    public func getMax() -> Double {
+        lock.withLock({
+            self.maxValue
+        })
+    }
+    
+    public func getStep() -> Double {
+        lock.withLock({
+            self.stepValue
+        })
+    }
+    
+    public func getValue() -> Double {
+        lock.withLock({
+            self.value
+        })
     }
     
     // MARK: - Override Method
     public override func copy(with zone: NSZone? = nil) -> Any {
-        INDINumberProperty(elementName: self.elementName, elementLabel: self.elementLabel, format: self.format, minValue: self.minValue, maxValue: self.maxValue, stepValue: self.stepValue, value: self.value, parent: self.parent)
+        lock.withLock({
+            INDINumberProperty(elementName: self.elementName, elementLabel: self.elementLabel, format: self.format, minValue: self.minValue, maxValue: self.maxValue, stepValue: self.stepValue, value: self.value, parent: self.parent)
+        })
     }
     
     public override func clear() {
         self.format = ""
-        self.minValue = 0
-        self.maxValue = 0
         self.stepValue = 0
-        self.value = 0
+        lock.withLock({
+            self.minValue = 0
+            self.maxValue = 0
+            self.value = 0
+        })
         super.clear()
     }
 }

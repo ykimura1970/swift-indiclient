@@ -12,7 +12,7 @@ internal import NIOFoundationCompat
 internal import NIOConcurrencyHelpers
 internal import NIOPosix
 
-open class INDIBaseClient: INDIBaseMediatorDelegate {
+open class INDIBaseClient: INDIBaseMediatorDelegate, @unchecked Sendable {
     // MARK: - Delegate Property
     public var delegate: INDIBaseMediatorDelegate?
     

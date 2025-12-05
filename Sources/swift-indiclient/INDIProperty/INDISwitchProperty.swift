@@ -7,8 +7,9 @@
 
 import Foundation
 import Combine
+internal import NIOConcurrencyHelpers
 
-public class INDISwitchProperty: INDIProperty, ObservableObject {
+final public class INDISwitchProperty: INDIProperty, ObservableObject, @unchecked Sendable {
     // MARK: - Original Property
     @Published internal(set) public var switchState: INDISwitchState
     
@@ -21,40 +22,50 @@ public class INDISwitchProperty: INDIProperty, ObservableObject {
     // MARK: - Original Computed Property
     public var switchStateAsString: String {
         get {
-            self.switchState.toString()
+            lock.withLock({
+                self.switchState.toString()
+            })
         }
     }
     
     public var switchStateAsBool: Bool {
         get {
-            self.switchState.toBool()
+            lock.withLock({
+                self.switchState.toBool()
+            })
         }
     }
     
     // MARK: - Original Method
     public func setSwitchState(_ switchState: INDISwitchState) {
-        self.switchState = switchState
+        lock.withLock({
+            self.switchState = switchState
+        })
     }
     
     public func setSwitchState(from stringSwitchState: String) {
-        if let switchState = INDISwitchState.switchState(from: stringSwitchState) {
-            self.switchState = switchState
-        } else {
-            self.switchState = .Off
-        }
+        lock.withLock({
+            self.switchState = INDISwitchState.switchState(from: stringSwitchState) ?? .Off
+        })
     }
     
     public func setSwitchState(from boolSwitchState: Bool) {
-        self.switchState = INDISwitchState.switchState(from: boolSwitchState)
+        lock.withLock({
+            self.switchState = INDISwitchState.switchState(from: boolSwitchState)
+        })
     }
     
     // MARK: - Override Method
     public override func copy(with zone: NSZone? = nil) -> Any {
-        INDISwitchProperty(elementName: self.elementName, elementLabel: self.elementLabel, switchState: self.switchState, parent: self.parent)
+        lock.withLock({
+            INDISwitchProperty(elementName: self.elementName, elementLabel: self.elementLabel, switchState: self.switchState, parent: self.parent)
+        })
     }
     
     public override func clear() {
-        self.switchState = .Off
+        lock.withLock({
+            self.switchState = .Off
+        })
         super.clear()
     }
 }

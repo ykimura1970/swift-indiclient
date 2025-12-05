@@ -7,8 +7,9 @@
 
 import Foundation
 import Combine
+internal import NIOConcurrencyHelpers
 
-public class INDIBlobProperty: INDIProperty {
+final public class INDIBlobProperty: INDIProperty, @unchecked Sendable {
     // MARK: - Original Property
     internal(set) public var format: String
     internal(set) public var blob: Data
@@ -26,27 +27,37 @@ public class INDIBlobProperty: INDIProperty {
     
     // MARK: - Original Method
     public func setFormat(_ format: String) {
-        self.format = format
+        lock.withLock({
+            self.format = format
+        })
     }
     
     public func setBlob(blob: Data) {
-        self.blob = blob
+        lock.withLock({
+            self.blob = blob
+        })
     }
     
     public func setBlobLength(_ blobLength: Int) {
-        self.blobLength = blobLength
+        lock.withLock({
+            self.blobLength = blobLength
+        })
     }
     
     public func setSize(_ size: Int) {
-        self.size = size
+        lock.withLock({
+            self.size = size
+        })
     }
     
     // MARK: - Override Method
     public override func clear() {
-        self.format = ""
-        self.blob = Data()
-        self.blobLength = 0
-        self.size = 0
+        lock.withLock({
+            self.format = ""
+            self.blob = Data()
+            self.blobLength = 0
+            self.size = 0
+        })
         super.clear()
     }
 }

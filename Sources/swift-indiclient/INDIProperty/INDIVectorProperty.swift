@@ -6,18 +6,20 @@
 //
 
 import Foundation
+internal import NIOConcurrencyHelpers
 
-public class INDIVectorProperty: NSObject, NSCopying {
+public class INDIVectorProperty: NSObject, NSCopying, @unchecked Sendable {
     // MARK: - Fundamental Property
-    internal(set) public var deviceName: String
-    internal(set) public var propertyName: String
-    internal(set) public var propertyLabel: String
-    internal(set) public var groupName: String
-    internal(set) public var propertyPermission: INDIPropertyPermission
-    internal(set) public var timeout: Double
-    internal(set) public var propertyState: INDIPropertyState
-    internal(set) public var timestamp: String
-    internal(set) public var dynamic: Bool
+    internal var deviceName: String
+    internal var propertyName: String
+    internal var propertyLabel: String
+    internal var groupName: String
+    internal var propertyPermission: INDIPropertyPermission
+    internal var timeout: Double
+    internal var propertyState: INDIPropertyState
+    internal var timestamp: String
+    internal var dynamic: Bool
+    internal let lock: NIOLock = NIOLock()
 
     // MARK: - Initializer
     public init(deviceName: String = "", propertyName: String = "", propertyLabel: String = "", groupName: String = "", propertyPermission: INDIPropertyPermission = .ReadOnly, timeout: Double = 0, propertyState: INDIPropertyState = .Idle, timestamp: String = "", dynamic: Bool = false) {
@@ -41,7 +43,9 @@ public class INDIVectorProperty: NSObject, NSCopying {
     
     public var propertyStateAsString: String {
         get {
-            propertyState.toString()
+            lock.withLock({
+                propertyState.toString()
+            })
         }
     }
     
@@ -53,7 +57,9 @@ public class INDIVectorProperty: NSObject, NSCopying {
     
     // MARK: - Protocol Method
     public func copy(with zone: NSZone? = nil) -> Any {
-        INDIVectorProperty(deviceName: self.deviceName, propertyName: self.propertyName, propertyLabel: self.propertyLabel, groupName: self.groupName, propertyPermission: self.propertyPermission, timeout: self.timeout, propertyState: self.propertyState, timestamp: self.timestamp, dynamic: self.dynamic)
+        lock.withLock({
+            INDIVectorProperty(deviceName: self.deviceName, propertyName: self.propertyName, propertyLabel: self.propertyLabel, groupName: self.groupName, propertyPermission: self.propertyPermission, timeout: self.timeout, propertyState: self.propertyState, timestamp: self.timestamp, dynamic: self.dynamic)
+        })
     }
 
     // MARK: - Fundamental Method
@@ -81,28 +87,26 @@ public class INDIVectorProperty: NSObject, NSCopying {
         self.propertyPermission = propertyPermision
     }
     
-    public func setPropertyPermission(from string: String) {
-        if let propertyPermission = INDIPropertyPermission.propertyPermission(from: string) {
-            self.propertyPermission = propertyPermission
-        } else {
-            self.propertyPermission = .ReadOnly
-        }
+    public func setPropertyPermission(from stringPropertyPermission: String) {
+        self.propertyPermission = INDIPropertyPermission.propertyPermission(from: stringPropertyPermission) ?? .ReadOnly
     }
     
     public func setTimeout(_ timeout: Double) {
-        self.timeout = timeout
+        lock.withLock({
+            self.timeout = timeout
+        })
     }
     
     public func setPropertyState(_ propertyState: INDIPropertyState) {
-        self.propertyState = propertyState
+        lock.withLock({
+            self.propertyState = propertyState
+        })
     }
     
     public func setPropertyState(from stringPropertyState: String) {
-        if let propertyState = INDIPropertyState.propertyState(from: stringPropertyState) {
-            self.propertyState = propertyState
-        } else {
-            self.propertyState = .Idle
-        }
+        lock.withLock({
+            self.propertyState = INDIPropertyState.propertyState(from: stringPropertyState) ?? .Ok
+        })
     }
     
     public func setTimestamp(_ timestamp: String) {
@@ -131,8 +135,10 @@ public class INDIVectorProperty: NSObject, NSCopying {
         self.propertyLabel = ""
         self.groupName = ""
         self.propertyPermission = .ReadOnly
-        self.timeout = 0.0
-        self.propertyState = .Idle
         self.timestamp = ""
+        lock.withLock({
+            self.timeout = 0.0
+            self.propertyState = .Idle
+        })
     }
 }

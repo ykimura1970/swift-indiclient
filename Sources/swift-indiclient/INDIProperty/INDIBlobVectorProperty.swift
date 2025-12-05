@@ -7,7 +7,7 @@
 
 import Foundation
 
-final public class INDIBlobVectorProperty: INDIVectorPropertyTemplate<INDIBlobProperty> {
+final public class INDIBlobVectorProperty: INDIVectorPropertyTemplate<INDIBlobProperty>, @unchecked Sendable {
     // MARK: - Override Method
     internal override func createNewCommand() -> INDIProtocolElement {
         var root = createNewRootINDIProtocolElement()
@@ -36,22 +36,24 @@ final public class INDIBlobVectorProperty: INDIVectorPropertyTemplate<INDIBlobPr
     internal override func createNewChildrenINDIProtocolElement() -> [INDIProtocolElement] {
         var children = [INDIProtocolElement]()
         
-        self.properties.forEach({ property in
-            var child = INDIProtocolElement(tagName: "oneBLOB")
-            child.addAttribute(attribute: INDIProtocolElement.Attribute(key: "name", value: property.elementName))
-            child.addAttribute(attribute: INDIProtocolElement.Attribute(key: "size", value: String(format: "%d", property.size)))
-            
-            if property.size == 0 {
-                child.addAttribute(attribute: INDIProtocolElement.Attribute(key: "enclen", value: "0"))
-                child.addAttribute(attribute: INDIProtocolElement.Attribute(key: "format", value: property.format))
-            } else {
-                let data = property.blob.base64EncodedString()
-                child.addAttribute(attribute: INDIProtocolElement.Attribute(key: "enclen", value: String(format: "%d", data.count)))
-                child.addAttribute(attribute: INDIProtocolElement.Attribute(key: "format", value: property.format))
-                child.addStringValue(string: data)
-            }
-            
-            children.append(child)
+        lock.withLock({
+            self.properties.forEach({ property in
+                var child = INDIProtocolElement(tagName: "oneBLOB")
+                child.addAttribute(attribute: INDIProtocolElement.Attribute(key: "name", value: property.elementName))
+                child.addAttribute(attribute: INDIProtocolElement.Attribute(key: "size", value: String(format: "%d", property.size)))
+                
+                if property.size == 0 {
+                    child.addAttribute(attribute: INDIProtocolElement.Attribute(key: "enclen", value: "0"))
+                    child.addAttribute(attribute: INDIProtocolElement.Attribute(key: "format", value: property.format))
+                } else {
+                    let data = property.blob.base64EncodedString()
+                    child.addAttribute(attribute: INDIProtocolElement.Attribute(key: "enclen", value: String(format: "%d", data.count)))
+                    child.addAttribute(attribute: INDIProtocolElement.Attribute(key: "format", value: property.format))
+                    child.addStringValue(string: data)
+                }
+                
+                children.append(child)
+            })
         })
         
         return children
