@@ -10,7 +10,7 @@ internal import NIOConcurrencyHelpers
 
 final public class INDISwitchVectorProperty: INDIVectorPropertyTemplate<INDISwitchProperty>, @unchecked Sendable {
     // MARK: - Original Property
-    internal(set) public var switchVectorPropertyRule: INDISwitchVectorPropertyRule
+    internal var switchVectorPropertyRule: INDISwitchVectorPropertyRule
     
     // MARK: - Initializer
     public init(deviceName: String = "", propertyName: String = "", propertyLabel: String = "", groupName: String = "", propertyPermission: INDIPropertyPermission = .ReadOnly, timeout: Double = 0, propertyState: INDIPropertyState = .Idle, timestamp: String = "", switchVectorPropertyRule: INDISwitchVectorPropertyRule = .OneOfMany, dynamic: Bool = false) {
@@ -32,6 +32,10 @@ final public class INDISwitchVectorProperty: INDIVectorPropertyTemplate<INDISwit
     
     public func setSwitchVectorPropertyRule(_ stringSwitchVectorPropertyRule: String){
         self.switchVectorPropertyRule = INDISwitchVectorPropertyRule.switchVectorPropertyRule(from: stringSwitchVectorPropertyRule) ?? .OneOfMany
+    }
+    
+    public func getSwitchVectorPropertyRule() -> INDISwitchVectorPropertyRule {
+        self.switchVectorPropertyRule
     }
     
     public func reset() {

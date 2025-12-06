@@ -68,19 +68,19 @@ public class INDIVectorProperty: NSObject, NSCopying, @unchecked Sendable {
     }
     
     public func setDeviceName(_ name: String) {
-        deviceName = name
+        self.deviceName = name
     }
     
     public func setPropertyName(_ name: String) {
-        propertyName = name
+        self.propertyName = name
     }
     
     public func setPropertyLabel(_ label: String) {
-        propertyLabel = label
+        self.propertyLabel = label
     }
     
     public func setGroupName(_ name: String) {
-        groupName = name
+        self.groupName = name
     }
     
     public func setPropertyPermission(_ propertyPermision: INDIPropertyPermission) {
@@ -111,6 +111,42 @@ public class INDIVectorProperty: NSObject, NSCopying, @unchecked Sendable {
     
     public func setTimestamp(_ timestamp: String) {
         self.timestamp = timestamp
+    }
+
+    public func getDeviceName() -> String {
+        self.deviceName
+    }
+    
+    public func getPropertyName() -> String {
+        self.propertyName
+    }
+    
+    public func getPropertyLabel() -> String {
+        self.propertyLabel
+    }
+    
+    public func getGroupName() -> String {
+        self.groupName
+    }
+    
+    public func getPropertyPermission() -> INDIPropertyPermission {
+        self.propertyPermission
+    }
+    
+    public func getTimeout() -> Double {
+        lock.withLock({
+            self.timeout
+        })
+    }
+    
+    public func getPropertyState() -> INDIPropertyState {
+        lock.withLock({
+            self.propertyState
+        })
+    }
+    
+    public func getTimestamp() -> String {
+        self.timestamp
     }
     
     public func isDeviceNameMatch(_ otherName: String) -> Bool {
