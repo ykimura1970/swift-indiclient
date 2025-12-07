@@ -9,7 +9,7 @@ import Foundation
 internal import DequeModule
 internal import NIOConcurrencyHelpers
 
-public class INDIBaseDevice {
+public class INDIBaseDevice: @unchecked Sendable {
     public enum INDIError: Int {
         case DeviceNotFound     = -1    // INDI Device was not found
         case PropertyInvalid    = -2    // Property has an invalid syntax or attribute.
