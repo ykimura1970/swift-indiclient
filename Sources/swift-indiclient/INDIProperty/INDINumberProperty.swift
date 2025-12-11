@@ -71,6 +71,12 @@ final public class INDINumberProperty: INDIProperty, ObservableObject, @unchecke
         })
     }
     
+    public func setValue(_ value: Int) {
+        lock.withLock({
+            self.value = Double(value)
+        })
+    }
+    
     public func getFormat() -> String {
         self.format
     }
