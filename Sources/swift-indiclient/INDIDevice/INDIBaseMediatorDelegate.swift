@@ -55,22 +55,3 @@ public protocol INDIBaseMediatorDelegate: AnyObject {
     ///  - exitCode: 0 if client was requested to disconnect from server. -1 if connection to server is terminated due to remote server disconnection.
     func serverDisconnected(exitCode: Int)
 }
-
-// MARK: - Default Implement
-public extension INDIBaseMediatorDelegate {
-    func newDevice(sender: INDIBaseDevice) { }
-    
-    func removeDevice(sender: INDIBaseDevice) { }
-    
-    func newVectorProperty(sender: INDIBaseDevice, vectorProperty: INDIVectorProperty) { }
-    
-    func updateVectorProperty(sender: INDIBaseDevice, vectorProperty: INDIVectorProperty) { }
-    
-    func removeVectorProperty(sender: INDIBaseDevice, vectorProperty: INDIVectorProperty) { }
-    
-    func newMessage(sender: INDIBaseDevice, messageID: Int) { }
-    
-    func serverConnected() { }
-    
-    func serverDisconnected(exitCode: Int) { }
-}

@@ -19,7 +19,7 @@ open class INDIBaseClient: INDIBaseMediatorDelegate, @unchecked Sendable {
     // MARK: - Fundamental Property
     internal(set) public var hostname: String = "localhost"
     internal(set) public var port: Int = 7624
-    internal var serverConnected: ManagedAtomic<Bool> = ManagedAtomic(false)
+    internal var connected: ManagedAtomic<Bool> = ManagedAtomic(false)
     internal var verbose: Bool = false
     internal var timeout: Float = 3
     internal var watchDevice: INDIWatchDeviceProperty = INDIWatchDeviceProperty()
@@ -32,7 +32,7 @@ open class INDIBaseClient: INDIBaseMediatorDelegate, @unchecked Sendable {
     // MARK: - Computed Property
     public var isServerConnected: Bool {
         get {
-            self.serverConnected.load(ordering: .relaxed)
+            self.connected.load(ordering: .relaxed)
         }
     }
     
@@ -45,7 +45,7 @@ open class INDIBaseClient: INDIBaseMediatorDelegate, @unchecked Sendable {
     /// Connect to INDI server.
     /// - Returns: True if the connection is successful, false otherwise.
     open func connectServer() -> Bool {
-        if serverConnected.load(ordering: .relaxed) {
+        if self.connected.load(ordering: .relaxed) {
             print("INDIBaseClient.connectServer: Already connected.")
             return false
         }
@@ -54,12 +54,12 @@ open class INDIBaseClient: INDIBaseMediatorDelegate, @unchecked Sendable {
         
         socket.setParent(self)
         if !socket.connectToHost(hostname: hostname, port: port) {
-            serverConnected.store(false, ordering: .relaxed)
+            self.connected.store(false, ordering: .relaxed)
             return false
         }
         
         clear()
-        serverConnected.store(true, ordering: .relaxed)
+        self.connected.store(true, ordering: .relaxed)
         delegate?.serverConnected()
         sendGetProperties()
         
@@ -69,7 +69,7 @@ open class INDIBaseClient: INDIBaseMediatorDelegate, @unchecked Sendable {
     /// Disconnect from INDI server. Any devices previously created will be deleted and memory cleared.
     /// - Returns: True if disconnection is successful, false otherwise.
     open func disconnectServer(exitCode: Int = 0) -> Bool {
-        if !serverConnected.exchange(false, ordering: .relaxed) {
+        if !self.connected.exchange(false, ordering: .relaxed) {
             print("INDIBaseClient.disconnectServer: Already disconnected.")
             return false
         }
@@ -204,6 +204,24 @@ open class INDIBaseClient: INDIBaseMediatorDelegate, @unchecked Sendable {
         self.watchDevice.clearDevices()
         self.blobModes.removeAll()
     }
+    
+    // MARK: - INDIBaseMediatorDelegate Method
+    open func newDevice(sender: INDIBaseDevice) { }
+    
+    open func removeDevice(sender: INDIBaseDevice) { }
+    
+    open func newVectorProperty(sender: INDIBaseDevice, vectorProperty: INDIVectorProperty) { }
+    
+    open func updateVectorProperty(sender: INDIBaseDevice, vectorProperty: INDIVectorProperty) { }
+    
+    open func removeVectorProperty(sender: INDIBaseDevice, vectorProperty: INDIVectorProperty) { }
+    
+    open func newMessage(sender: INDIBaseDevice, messageID: Int) { }
+    
+    open func serverConnected() { }
+    
+    open func serverDisconnected(exitCode: Int) { }
+    
 }
 
 // MARK: - Send Command Method
