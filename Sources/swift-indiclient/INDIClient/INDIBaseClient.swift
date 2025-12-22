@@ -13,9 +13,6 @@ internal import NIOConcurrencyHelpers
 internal import NIOPosix
 
 open class INDIBaseClient: INDIBaseMediatorDelegate, @unchecked Sendable {
-    // MARK: - Delegate Property
-    public var delegate: INDIBaseMediatorDelegate?
-    
     // MARK: - Fundamental Property
     internal(set) public var hostname: String = "localhost"
     internal(set) public var port: Int = 7624
@@ -60,7 +57,7 @@ open class INDIBaseClient: INDIBaseMediatorDelegate, @unchecked Sendable {
         
         clear()
         self.connected.store(true, ordering: .relaxed)
-        delegate?.serverConnected()
+        serverConnected()
         sendGetProperties()
         
         return true
@@ -75,7 +72,7 @@ open class INDIBaseClient: INDIBaseMediatorDelegate, @unchecked Sendable {
         }
         
         let result = socket.disconnectFromHost()
-        delegate?.serverDisconnected(exitCode: exitCode)
+        serverDisconnected(exitCode: exitCode)
         
         return result
     }
@@ -414,7 +411,7 @@ public extension INDIBaseClient {
         if let propertyName = root.getAttribute(name: "name") {
             if let vectorProperty = device.getVectorProperty(propertyName: propertyName) {
                 if isServerConnected {
-                    delegate?.removeVectorProperty(sender: device, vectorProperty: vectorProperty)
+                    removeVectorProperty(sender: device, vectorProperty: vectorProperty)
                 }
                 return device.removeVectorProperty(propertyName: propertyName)
             }

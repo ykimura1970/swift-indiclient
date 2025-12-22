@@ -135,7 +135,9 @@ public class INDIBaseDevice: @unchecked Sendable {
 // MARK: - Property Method
 public extension INDIBaseDevice {
     func getVectorProperties() -> [INDIVectorProperty] {
-        self.properties.compactMap({ $0.vectorProperty })
+        lock.withLock({
+            self.properties.compactMap({ $0.vectorProperty })
+        })
     }
     
     func getVectorProperty(propertyName: String, type: INDIPropertyType = .INDIUnknown) -> INDIVectorProperty? {
@@ -344,7 +346,9 @@ public extension INDIBaseDevice {
             wrapVectorProperty.vectorProperty?.setPropertyPermission(from: root.getAttribute(name: "perm") ?? "")
         }
         
-        self.properties.append(wrapVectorProperty)
+        lock.withLock({
+            self.properties.append(wrapVectorProperty)
+        })
         self.delegate?.newVectorProperty(sender: self, vectorProperty: wrapVectorProperty.vectorProperty!)
         
         return 0
@@ -401,38 +405,46 @@ public extension INDIBaseDevice {
         case .INDINumber(_):
             let typedVectorProperty = vectorProperty as! INDINumberVectorProperty
             
-            root.children.forEach({ child in
-                if let property = typedVectorProperty.findPropertyByElementName(child.getAttribute(name: "name") ?? "") {
-                    property.setValue(Double(child.stringValue ?? "") ?? 0)
-                    
-                    // permit chaning of min/max
-                    if let minValue = Double(child.getAttribute(name: "min") ?? "") { property.setMin(minValue) }
-                    if let maxValue = Double(child.getAttribute(name: "max") ?? "") { property.setMax(maxValue) }
-                }
+            lock.withLock({
+                root.children.forEach({ child in
+                    if let property = typedVectorProperty.findPropertyByElementName(child.getAttribute(name: "name") ?? "") {
+                        property.setValue(Double(child.stringValue ?? "") ?? 0)
+                        
+                        // permit chaning of min/max
+                        if let minValue = Double(child.getAttribute(name: "min") ?? "") { property.setMin(minValue) }
+                        if let maxValue = Double(child.getAttribute(name: "max") ?? "") { property.setMax(maxValue) }
+                    }
+                })
             })
         case .INDISwitch(_):
             let typedVectorProperty = vectorProperty as! INDISwitchVectorProperty
             
-            root.children.forEach({ child in
-                if let property = typedVectorProperty.findPropertyByElementName(child.getAttribute(name: "name") ?? "") {
-                    property.setSwitchState(from: child.stringValue ?? "")
-                }
+            lock.withLock({
+                root.children.forEach({ child in
+                    if let property = typedVectorProperty.findPropertyByElementName(child.getAttribute(name: "name") ?? "") {
+                        property.setSwitchState(from: child.stringValue ?? "")
+                    }
+                })
             })
         case .INDIText(_):
             let typedVectorProperty = vectorProperty as! INDITextVectorProperty
             
-            root.children.forEach({ child in
-                if let property = typedVectorProperty.findPropertyByElementName(child.getAttribute(name: "name") ?? "") {
-                    property.setText(child.stringValue ?? "")
-                }
+            lock.withLock({
+                root.children.forEach({ child in
+                    if let property = typedVectorProperty.findPropertyByElementName(child.getAttribute(name: "name") ?? "") {
+                        property.setText(child.stringValue ?? "")
+                    }
+                })
             })
         case .INDILight(_):
             let typedVectorProperty = vectorProperty as!INDILightVectorProperty
             
-            root.children.forEach({ child in
-                if let property = typedVectorProperty.findPropertyByElementName(child.getAttribute(name: "name") ?? "") {
-                    property.setLightState(from: child.stringValue ?? "")
-                }
+            lock.withLock({
+                root.children.forEach({ child in
+                    if let property = typedVectorProperty.findPropertyByElementName(child.getAttribute(name: "name") ?? "") {
+                        property.setLightState(from: child.stringValue ?? "")
+                    }
+                })
             })
         case .INDIBlob(_):
             let typedVectorProperty = vectorProperty as! INDIBlobVectorProperty
@@ -450,52 +462,56 @@ public extension INDIBaseDevice {
     }
     
     func setBLOB(vectorProperty: INDIBlobVectorProperty, root: INDIProtocolElement) -> Int {
-        for child in root.children {
-            if child.tagName == "oneBLOB" {
-                guard let elementName = child.getAttribute(name: "name"), let format = child.getAttribute(name: "format"), let sizeString = child.getAttribute(name: "size") else {
-                    print("INDI: \(deviceName).\(vectorProperty.propertyName) No vaild members.")
-                    return -1
-                }
-                
-                guard let property = vectorProperty.findPropertyByElementName(elementName) else {
-                    print("INDI: \(deviceName).\(vectorProperty.propertyName).\(elementName) No valid members.")
-                    return -1
-                }
-                
-                let size = Int(sizeString) ?? 0
-                if size == 0 {
-                    continue
-                }
-                
-                property.setSize(size)
-                
-                if let base64DecodeData = Data(base64Encoded: property.blob) {
-                    property.setBlob(blob: base64DecodeData)
-                    property.setBlobLength(base64DecodeData.count)
-                } else {
-                    print("INDI: \(deviceName).\(vectorProperty.propertyName).\(elementName) base64 decode error.")
-                    return -1
-                }
-                
-                if format.hasSuffix(".z") {
-                    property.setFormat(String(format.dropLast(2)))
-                    
-                    do {
-                        let data = NSMutableData(data: property.blob)
-                        try data.decompress(using: .zlib)
-                        property.setSize(data.count)
-                        property.setBlob(blob: data as Data)
-                    } catch let error {
-                        print("INDI: \(deviceName).\(vectorProperty.propertyName).\(elementName) compression error. \(error)")
+        let result = lock.withLock({
+            for child in root.children {
+                if child.tagName == "oneBLOB" {
+                    guard let elementName = child.getAttribute(name: "name"), let format = child.getAttribute(name: "format"), let sizeString = child.getAttribute(name: "size") else {
+                        print("INDI: \(deviceName).\(vectorProperty.propertyName) No vaild members.")
                         return -1
                     }
-                } else {
-                    property.setFormat(format)
+                    
+                    guard let property = vectorProperty.findPropertyByElementName(elementName) else {
+                        print("INDI: \(deviceName).\(vectorProperty.propertyName).\(elementName) No valid members.")
+                        return -1
+                    }
+                    
+                    let size = Int(sizeString) ?? 0
+                    if size == 0 {
+                        continue
+                    }
+                    
+                    property.setSize(size)
+                    
+                    if let base64DecodeData = Data(base64Encoded: property.blob) {
+                        property.setBlob(blob: base64DecodeData)
+                        property.setBlobLength(base64DecodeData.count)
+                    } else {
+                        print("INDI: \(deviceName).\(vectorProperty.propertyName).\(elementName) base64 decode error.")
+                        return -1
+                    }
+                    
+                    if format.hasSuffix(".z") {
+                        property.setFormat(String(format.dropLast(2)))
+                        
+                        do {
+                            let data = NSMutableData(data: property.blob)
+                            try data.decompress(using: .zlib)
+                            property.setSize(data.count)
+                            property.setBlob(blob: data as Data)
+                        } catch let error {
+                            print("INDI: \(deviceName).\(vectorProperty.propertyName).\(elementName) compression error. \(error)")
+                            return -1
+                        }
+                    } else {
+                        property.setFormat(format)
+                    }
                 }
             }
-        }
+            
+            return 0
+        })
         
-        return 0
+        return result
     }
 }
 
