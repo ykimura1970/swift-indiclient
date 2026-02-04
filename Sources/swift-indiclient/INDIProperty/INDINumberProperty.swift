@@ -1,125 +1,60 @@
 //
-//  INDINumberProperty.swift
+//  INDINumberVectorProperty.swift
 //  INDIClient
 //
-//  Created by Yoshio Kimura, Studio Parsec LLC on 2024/11/27.
+//  Created by Yoshio Kimura, Studio Parsec on 2024/11/27.
 //
 
 import Foundation
-import Combine
-internal import NIOConcurrencyHelpers
 
-final public class INDINumberProperty: INDIProperty, ObservableObject, @unchecked Sendable {
-    // MARK: - Original Property
-    internal var format: String
-    internal var minValue: Double
-    internal var maxValue: Double
-    internal var stepValue: Double
-    @Published internal(set) public var value: Double
-    
-    // MARK: - Initializer
-    public init(elementName: String = "", elementLabel: String = "", format: String = "", minValue: Double = 0, maxValue: Double = 0, stepValue: Double = 0, value: Double = 0, parent: INDIVectorProperty? = nil) {
-        self.format = format
-        self.minValue = minValue
-        self.maxValue = maxValue
-        self.stepValue = stepValue
-        self.value = value
-        super.init(elementName: elementName, elementLabel: elementLabel, parent: parent)
-    }
-    
-    // MARK: - Original Computed Property
-    public var range: ClosedRange<Double> {
-        get {
-            lock.withLock({
-                self.minValue...self.maxValue
-            })
-        }
-    }
-    
-    public var minMaxStep: (minValue: Double, maxValue: Double, stepValue: Double) {
-        get {
-            lock.withLock({
-                (self.minValue, self.maxValue, self.stepValue)
-            })
-        }
-    }
-    
-    // MARK: - Original Method
-    public func setFormat(_ format: String) {
-        self.format = format
-    }
-    
-    public func setMin(_ minValue: Double) {
-        lock.withLock({
-            self.minValue = minValue
-        })
-    }
-    
-    public func setMax(_ maxValue: Double) {
-        lock.withLock({
-            self.maxValue = maxValue
-        })
-    }
-    
-    public func setStep(_ stepValue: Double) {
-        self.stepValue = stepValue
-    }
-    
-    public func setValue(_ value: Double) {
-        lock.withLock({
-            self.value = value
-        })
-    }
-    
-    public func setValue(_ value: Int) {
-        lock.withLock({
-            self.value = Double(value)
-        })
-    }
-    
-    public func getFormat() -> String {
-        self.format
-    }
-    
-    public func getMin() -> Double {
-        lock.withLock({
-            self.minValue
-        })
-    }
-    
-    public func getMax() -> Double {
-        lock.withLock({
-            self.maxValue
-        })
-    }
-    
-    public func getStep() -> Double {
-        lock.withLock({
-            self.stepValue
-        })
-    }
-    
-    public func getValue() -> Double {
-        lock.withLock({
-            self.value
-        })
-    }
-    
+final public class INDINumberVectorProperty: INDIVectorPropertyTemplate<INDINumberProperty>, @unchecked Sendable {
     // MARK: - Override Method
     public override func copy(with zone: NSZone? = nil) -> Any {
-        lock.withLock({
-            INDINumberProperty(elementName: self.elementName, elementLabel: self.elementLabel, format: self.format, minValue: self.minValue, maxValue: self.maxValue, stepValue: self.stepValue, value: self.value, parent: self.parent)
+        var copiedProperties = [INDINumberProperty]()
+        
+        let newNumberVectorProperty = lock.withLock({
+            copiedProperties = self.properties.map({ $0.copy() as! INDINumberProperty })
+            
+            return INDINumberVectorProperty(deviceName: self.deviceName, propertyName: self.propertyName, propertyLabel: self.propertyLabel, groupName: self.groupName, propertyPermission: self.propertyPermission, timeout: self.timeout, propertyState: self.propertyState, timestamp: self.timestamp, dynamic: self.dynamic)
         })
+        
+        newNumberVectorProperty.appendProperties(contentOf: copiedProperties)
+        
+        return newNumberVectorProperty
     }
     
-    public override func clear() {
-        self.format = ""
-        self.stepValue = 0
+    internal override func createNewCommand() -> INDIProtocolElement {
+        var root = createNewRootINDIProtocolElement()
+        let children = createNewChildrenINDIProtocolElement()
+        
+        if !children.isEmpty {
+            root.addChildren(contentOf: children)
+        }
+        
+        return root
+    }
+    
+    internal override func createNewRootINDIProtocolElement() -> INDIProtocolElement {
+        var root = INDIProtocolElement(tagName: "newNumberVector")
+        
+        root.addAttribute(attribute: INDIProtocolElement.Attribute(key: "device", value: deviceName))
+        root.addAttribute(attribute: INDIProtocolElement.Attribute(key: "name", value: propertyName))
+        
+        return root
+    }
+    
+    internal override func createNewChildrenINDIProtocolElement() -> [INDIProtocolElement] {
+        var children = [INDIProtocolElement]()
+        
         lock.withLock({
-            self.minValue = 0
-            self.maxValue = 0
-            self.value = 0
+            self.properties.forEach({ property in
+                var element = INDIProtocolElement(tagName: "oneNumber")
+                element.addAttribute(attribute: INDIProtocolElement.Attribute(key: "name", value: property.elementName))
+                element.addStringValue(string: String(format: "      %.20g", property.value))
+                children.append(element)
+            })
         })
-        super.clear()
+        
+        return children
     }
 }

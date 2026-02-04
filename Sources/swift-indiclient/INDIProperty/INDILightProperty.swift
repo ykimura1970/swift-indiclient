@@ -1,59 +1,27 @@
 //
-//  INDILightProperty.swift
+//  INDILightVectorProperty.swift
 //  INDIClient
 //
 //  Created by Yoshio Kimura, Studio Parsec LLC on 2024/11/27.
 //
 
-import SwiftUI
-import Combine
+import Foundation
 internal import NIOConcurrencyHelpers
 
-final public class INDILightProperty: INDIProperty, ObservableObject, @unchecked Sendable {
-    // MARK: - Original Property
-    @Published internal(set) public var lightState: INDIPropertyState
-    
+final public class INDILightVectorProperty: INDIVectorPropertyTemplate<INDILightProperty>, @unchecked Sendable {
     // MARK: - Initializer
-    public init(elementName: String = "", elementLabel: String = "", lightState: INDIPropertyState = .Ok, parent: INDIVectorProperty? = nil) {
-        self.lightState = lightState
-        super.init(elementName: elementName, elementLabel: elementLabel, parent: parent)
-    }
-    
-    // MARK: - Original Computed Property
-    var lightStateAsString: String {
-        get {
-            lock.withLock({
-                self.lightState.toString()
-            })
-        }
-    }
-    
-    var lightStateAsColor: Color {
-        get {
-            lock.withLock({
-                self.lightState.toColor()
-            })
-        }
-    }
-    
-    // MARK: - Original Method
-    public func setLightState(lightState: INDIPropertyState) {
-        lock.withLock({
-            self.lightState = lightState
-        })
-    }
-    
-    public func setLightState(from stringLightState: String) {
-        lock.withLock({
-            self.lightState = INDIPropertyState.propertyState(from: stringLightState) ?? .Ok
-        })
+    public init(deviceName: String = "", propertyName: String = "", propertyLabel: String = "", groupName: String = "", timestamp: String = "", dynamic: Bool = false) {
+        super.init(deviceName: deviceName, propertyName: propertyName, propertyLabel: propertyLabel, groupName: groupName, timestamp: timestamp, dynamic: dynamic)
     }
     
     // MARK: - Override Method
-    public override func clear() {
-        lock.withLock({
-            self.lightState = .Ok
-        })
-        super.clear()
-    }
+    public override func setPropertyPermission(_ propertyPermision: INDIPropertyPermission) { }
+    
+    public override func setPropertyPermission(from string: String) { }
+    
+    public override func setTimeout(_ timeout: Double) { }
+    
+    public override func setPropertyState(_ propertyState: INDIPropertyState) { }
+    
+    public override func setPropertyState(from string: String) { }
 }

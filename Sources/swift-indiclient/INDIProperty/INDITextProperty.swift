@@ -1,46 +1,47 @@
 //
-//  INDITextProperty.swift
+//  INDITextVectorProperty.swift
 //  INDIClient
 //
 //  Created by Yoshio Kimura, Studio Parsec LLC on 2024/11/27.
 //
 
 import Foundation
-import Combine
 internal import NIOConcurrencyHelpers
 
-final public class INDITextProperty: INDIProperty, ObservableObject, @unchecked Sendable {
-    // MARK: - Original Property
-    @Published internal(set) public var text: String
-    
-    // MARK: - Initializer
-    public init(elementName: String, elementLabel: String, text: String, parent: INDIVectorProperty? = nil) {
-        self.text = text
-        super.init(elementName: elementName, elementLabel: elementLabel, parent: parent)
-    }
-    
-    public convenience init() {
-        self.init(elementName: "", elementLabel: "", text: "")
-    }
-    
-    // MARK: - Original Method
-    public func setText(_ text: String) {
-        lock.withLock({
-            self.text = text
-        })
-    }
-    
+final public class INDITextVectorProperty: INDIVectorPropertyTemplate<INDITextProperty>, @unchecked Sendable {
     // MARK: - Override Method
-    public override func copy(with zone: NSZone? = nil) -> Any {
-        lock.withLock({
-            INDITextProperty(elementName: self.elementName, elementLabel: self.elementLabel, text: self.text, parent: self.parent)
-        })
+    internal override func createNewCommand() -> INDIProtocolElement {
+        var root = createNewRootINDIProtocolElement()
+        let children = createNewChildrenINDIProtocolElement()
+        
+        if !children.isEmpty {
+            root.addChildren(contentOf: children)
+        }
+        
+        return root
     }
     
-    public override func clear() {
+    internal override func createNewRootINDIProtocolElement() -> INDIProtocolElement {
+        var root = INDIProtocolElement(tagName: "newTextVector")
+        
+        root.addAttribute(attribute: INDIProtocolElement.Attribute(key: "device", value: deviceName))
+        root.addAttribute(attribute: INDIProtocolElement.Attribute(key: "name", value: propertyName))
+        
+        return root
+    }
+    
+    internal override func createNewChildrenINDIProtocolElement() -> [INDIProtocolElement] {
+        var children = [INDIProtocolElement]()
+        
         lock.withLock({
-            self.text = ""
+            self.properties.forEach({ property in
+                var child = INDIProtocolElement(tagName: "oneText")
+                child.addAttribute(attribute: INDIProtocolElement.Attribute(key: "name", value: property.elementName))
+                child.addStringValue(string: property.text)
+                children.append(child)
+            })
         })
-        super.clear()
+        
+        return children
     }
 }

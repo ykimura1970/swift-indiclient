@@ -1,63 +1,61 @@
 //
-//  INDIBlobProperty.swift
+//  INDIBlobVectorProperty.swift
 //  INDIClient
 //
 //  Created by Yoshio Kimura, Studio Parsec LLC on 2024/11/27.
 //
 
 import Foundation
-import Combine
-internal import NIOConcurrencyHelpers
 
-final public class INDIBlobProperty: INDIProperty, @unchecked Sendable {
-    // MARK: - Original Property
-    internal(set) public var format: String
-    internal(set) public var blob: Data
-    internal(set) public var blobLength: Int
-    internal(set) public var size: Int
-    
-    // MARK: - Initializer
-    public init(elementName: String = "", elementLabel: String = "", format: String = "", blob: Data = Data(), blobLength: Int = 0, size: Int = 0, parent: INDIVectorProperty? = nil) {
-        self.format = format
-        self.blob = blob
-        self.blobLength = blobLength
-        self.size = size
-        super.init(elementName: elementName, elementLabel: elementLabel, parent: parent)
-    }
-    
-    // MARK: - Original Method
-    public func setFormat(_ format: String) {
-        lock.withLock({
-            self.format = format
-        })
-    }
-    
-    public func setBlob(blob: Data) {
-        lock.withLock({
-            self.blob = blob
-        })
-    }
-    
-    public func setBlobLength(_ blobLength: Int) {
-        lock.withLock({
-            self.blobLength = blobLength
-        })
-    }
-    
-    public func setSize(_ size: Int) {
-        lock.withLock({
-            self.size = size
-        })
-    }
-    
+final public class INDIBlobVectorProperty: INDIVectorPropertyTemplate<INDIBlobProperty>, @unchecked Sendable {
     // MARK: - Override Method
-    public override func clear() {
+    internal override func createNewCommand() -> INDIProtocolElement {
+        var root = createNewRootINDIProtocolElement()
+        let children = createNewChildrenINDIProtocolElement()
+        
+        if !children.isEmpty {
+            root.addChildren(contentOf: children)
+        }
+        
+        return root
+    }
+    
+    internal override func createNewRootINDIProtocolElement() -> INDIProtocolElement {
+        var root = INDIProtocolElement(tagName: "newBLOBVector")
+        
+        root.addAttribute(attribute: INDIProtocolElement.Attribute(key: "device", value: deviceName))
+        root.addAttribute(attribute: INDIProtocolElement.Attribute(key: "name", value: propertyName))
+        
+        if !timestamp.isEmpty {
+            root.addAttribute(attribute: INDIProtocolElement.Attribute(key: "timestamp", value: timestamp))
+        }
+        
+        return root
+    }
+    
+    internal override func createNewChildrenINDIProtocolElement() -> [INDIProtocolElement] {
+        var children = [INDIProtocolElement]()
+        
         lock.withLock({
-            self.format = ""
-            self.blob = Data()
-            self.blobLength = 0
-            self.size = 0
+            self.properties.forEach({ property in
+                var child = INDIProtocolElement(tagName: "oneBLOB")
+                child.addAttribute(attribute: INDIProtocolElement.Attribute(key: "name", value: property.elementName))
+                child.addAttribute(attribute: INDIProtocolElement.Attribute(key: "size", value: String(format: "%d", property.size)))
+                
+                if property.size == 0 {
+                    child.addAttribute(attribute: INDIProtocolElement.Attribute(key: "enclen", value: "0"))
+                    child.addAttribute(attribute: INDIProtocolElement.Attribute(key: "format", value: property.format))
+                } else {
+                    let data = property.blob.base64EncodedString()
+                    child.addAttribute(attribute: INDIProtocolElement.Attribute(key: "enclen", value: String(format: "%d", data.count)))
+                    child.addAttribute(attribute: INDIProtocolElement.Attribute(key: "format", value: property.format))
+                    child.addStringValue(string: data)
+                }
+                
+                children.append(child)
+            })
         })
-        super.clear()
+        
+        return children
     }
 }
