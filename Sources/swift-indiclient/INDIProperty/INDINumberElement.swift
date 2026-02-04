@@ -90,21 +90,6 @@ final public class INDINumberElement: INDIElement, NSCopying, @unchecked Sendabl
         }
     }
     
-    public var valueAsFormattedString: String {
-        get {
-            if self._format.hasSuffix("m") {
-                let fractionLength = Int(self._format.suffix(2).dropLast()) ?? 6
-                return self._lock.withLock({
-                    return self._value.formatted(.angle(fractionLength: fractionLength))
-                })
-            }
-            
-            return self._lock.withLock({
-                return String(format: self._format, self._value)
-            })
-        }
-    }
-    
     // MARK: - Original Method
     public func setFormat(_ format: String) {
         self._format = format

@@ -1,15 +1,6 @@
 {
-  "originHash" : "2941916fd980723a49e5f2e5b6866af6fe891351a55e09805d68392cb1139ea5",
+  "originHash" : "206f925d6b8b269cc8436ac90943f690352fcb5c4a81b19168e73ddc0557595b",
   "pins" : [
-    {
-      "identity" : "swift-astronomy",
-      "kind" : "remoteSourceControl",
-      "location" : "https://github.com/ykimura1970/swift-astronomy.git",
-      "state" : {
-        "revision" : "7ba6d704c098ebf21df94fa116ac6e6aa33b591f",
-        "version" : "1.0.2"
-      }
-    },
     {
       "identity" : "swift-atomics",
       "kind" : "remoteSourceControl",
