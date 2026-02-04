@@ -8,25 +8,21 @@
 import Foundation
 
 /// Permission hint, with respective client.
-public enum INDIPropertyPermission: Sendable {
-    case ReadOnly
-    case WriteOnly
-    case ReadAndWrite
+public enum INDIPropertyPermission: String, Sendable {
+    case ReadOnly = "ro"
+    case WriteOnly = "wo"
+    case ReadAndWrite = "rw"
     
-    static func propertyPermission(from stringPropertyPermission: String) -> INDIPropertyPermission? {
-        switch stringPropertyPermission.lowercased() {
-        case "ro": .ReadOnly
-        case "wo": .WriteOnly
-        case "rw": .ReadAndWrite
-        default: nil
+    public init?(rawValue: String) {
+        switch rawValue.lowercased() {
+        case Self.ReadOnly.rawValue: self = .ReadOnly
+        case Self.WriteOnly.rawValue: self = .WriteOnly
+        case Self.ReadAndWrite.rawValue: self = .ReadAndWrite
+        default: return nil
         }
     }
     
     func toString() -> String {
-        switch self {
-        case .ReadOnly: "ro"
-        case .WriteOnly: "wo"
-        case .ReadAndWrite: "rw"
-        }
+        self.rawValue
     }
 }

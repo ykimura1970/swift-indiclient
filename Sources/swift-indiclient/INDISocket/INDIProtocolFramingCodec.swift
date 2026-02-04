@@ -9,19 +9,17 @@ import Foundation
 internal import NIOCore
 internal import NIOConcurrencyHelpers
 
-enum FramingCodecError: Error {
-    case badFraming
-}
-
-
-class INDIProtocolFramingCodec: ByteToMessageDecoder, MessageToByteEncoder, @unchecked Sendable {
+final class INDIProtocolFramingCodec: ByteToMessageDecoder, Sendable {
     typealias InboundOut = ByteBuffer
-    typealias OutboundIn = String
     
     // inbound
     func decode(context: ChannelHandlerContext, buffer: inout ByteBuffer) throws -> DecodingState {
-        guard buffer.readableBytesView.first == UInt8(ascii: " ") || buffer.readableBytesView.first == UInt8(ascii: "<") || buffer.readableBytesView.first == UInt8(ascii: "\n") else {
-            throw FramingCodecError.badFraming
+        if buffer.readableBytesView.last != UInt8(ascii: "\n") {
+            return .needMoreData
+        }
+        
+        if buffer.readableBytesView.first == UInt8(ascii: "\n") {
+            buffer.moveReaderIndex(forwardBy: 1)
         }
         
         guard let data = buffer.getData(at: buffer.readerIndex, length: buffer.readableBytes) else {
@@ -31,30 +29,27 @@ class INDIProtocolFramingCodec: ByteToMessageDecoder, MessageToByteEncoder, @unc
         let parser = XMLParser(data: data)
         
         var count = buffer.readableBytes
+        
         if !parser.parse() {
             let lines = buffer.getString(at: buffer.readerIndex, length: buffer.readableBytes)!.split(separator: "\n")
             
-            if parser.lineNumber == lines.count && parser.columnNumber == lines.last!.count + 1 {
+            if parser.lineNumber > 1 || parser.lineNumber == 0 {
                 return .needMoreData
             }
             
             count = lines[0..<parser.lineNumber - 1].reduce(0, { $0 + $1.count }) + parser.lineNumber - 1
+            
+            let slice = buffer.readSlice(length: count)!
+            context.fireChannelRead(wrapInboundOut(slice))
+            return .continue
+        } else {
+            context.fireChannelRead(wrapInboundOut(buffer))
+            return .needMoreData
         }
-        
-        let slice = buffer.readSlice(length: count)!
-        context.fireChannelRead(wrapInboundOut(slice))
-        
-        if parser.parse() { return .needMoreData }
-        return .continue
     }
     
     func decodeLast(context: ChannelHandlerContext, buffer: inout ByteBuffer, seenEOF: Bool) throws -> DecodingState {
         while try decode(context: context, buffer: &buffer) == .continue { }
         return .needMoreData
-    }
-    
-    func encode(data: String, out: inout ByteBuffer) throws {
-        var buffer = ByteBuffer(string: data)
-        out.writeBuffer(&buffer)
     }
 }

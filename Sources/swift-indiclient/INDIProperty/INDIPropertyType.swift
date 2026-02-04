@@ -9,73 +9,154 @@ import Foundation
 
 /// INDI Property type.
 public enum INDIPropertyType {
-    case INDINumber(_ vectorProperty: INDINumberVectorProperty = INDINumberVectorProperty())
-    case INDISwitch(_ vectorProperty: INDISwitchVectorProperty = INDISwitchVectorProperty())
-    case INDIText(_ vectorProperty: INDITextVectorProperty = INDITextVectorProperty())
-    case INDILight(_ vectorProperty: INDILightVectorProperty = INDILightVectorProperty())
-    case INDIBlob(_ vectorProperty: INDIBlobVectorProperty = INDIBlobVectorProperty())
+    case INDINumber(_ property: INDINumberProperty = INDINumberProperty())
+    case INDISwitch(_ property: INDISwitchProperty = INDISwitchProperty())
+    case INDIText(_ property: INDITextProperty = INDITextProperty())
+    case INDILight(_ property: INDILightProperty = INDILightProperty())
+    case INDIBlob(_ property: INDIBlobProperty = INDIBlobProperty())
     case INDIUnknown
     
-    public init(_ object: INDIVectorProperty) {
+    public init(_ object: INDIProperty) {
         switch object {
-        case is INDINumberVectorProperty: self = .INDINumber(object as! INDINumberVectorProperty)
-        case is INDISwitchVectorProperty: self = .INDISwitch(object as! INDISwitchVectorProperty)
-        case is INDITextVectorProperty: self = .INDIText(object as! INDITextVectorProperty)
-        case is INDILightVectorProperty: self = .INDILight(object as! INDILightVectorProperty)
-        case is INDIBlobVectorProperty: self = .INDIBlob(object as! INDIBlobVectorProperty)
+        case is INDINumberProperty: self = .INDINumber(object as! INDINumberProperty)
+        case is INDISwitchProperty: self = .INDISwitch(object as! INDISwitchProperty)
+        case is INDITextProperty: self = .INDIText(object as! INDITextProperty)
+        case is INDILightProperty: self = .INDILight(object as! INDILightProperty)
+        case is INDIBlobProperty: self = .INDIBlob(object as! INDIBlobProperty)
         default: self = .INDIUnknown
         }
     }
     
-    public var propertyIsEmpty: Bool {
+    public var property: INDIProperty? {
         get {
             switch self {
-            case .INDINumber(let vectorProperty): vectorProperty.propertyIsEmpty
-            case .INDISwitch(let vectorProperty): vectorProperty.propertyIsEmpty
-            case .INDIText(let vectorProperty): vectorProperty.propertyIsEmpty
-            case .INDILight(let vectorProperty): vectorProperty.propertyIsEmpty
-            case .INDIBlob(let vectorProperty): vectorProperty.propertyIsEmpty
-            default: false
-            }
-        }
-    }
-    
-    public var propertyCount: Int {
-        get {
-            switch self {
-            case .INDINumber(let vectorProperty): vectorProperty.propertyCount
-            case .INDISwitch(let vectorProperty): vectorProperty.propertyCount
-            case .INDIText(let vectorProperty): vectorProperty.propertyCount
-            case .INDILight(let vectorProperty): vectorProperty.propertyCount
-            case .INDIBlob(let vectorProperty): vectorProperty.propertyCount
-            default: .zero
-            }
-        }
-    }
-    
-    public var vectorProperty: INDIVectorProperty? {
-        get {
-            switch self {
-            case .INDINumber(let vectorProperty): vectorProperty
-            case .INDISwitch(let vectorProperty): vectorProperty
-            case .INDIText(let vectorProperty): vectorProperty
-            case .INDILight(let vectorProperty): vectorProperty
-            case .INDIBlob(let vectorProperty): vectorProperty
+            case .INDINumber(let numberProperty): numberProperty
+            case .INDISwitch(let switchProperty): switchProperty
+            case .INDIText(let textProperty): textProperty
+            case .INDILight(let lightProperty): lightProperty
+            case .INDIBlob(let blobProperty): blobProperty
             case .INDIUnknown: nil
             }
         }
     }
     
+    public var numberProperty: INDINumberProperty? {
+        get {
+            if case let INDIPropertyType.INDINumber(numberProperty) = self {
+                return numberProperty
+            }
+            return nil
+        }
+    }
+    
+    public var switchProperty: INDISwitchProperty? {
+        get {
+            if case let INDIPropertyType.INDISwitch(switchProperty) = self {
+                return switchProperty
+            }
+            return nil
+        }
+    }
+    
+    public var textProperty: INDITextProperty? {
+        get {
+            if case let INDIPropertyType.INDIText(textProperty) = self {
+                return textProperty
+            }
+            return nil
+        }
+    }
+    
+    public var lightProperty: INDILightProperty? {
+        get {
+            if case let INDIPropertyType.INDILight(lightProperty) = self {
+                return lightProperty
+            }
+            return nil
+        }
+    }
+    
+    public var blobProperty: INDIBlobProperty? {
+        get {
+            if case let INDIPropertyType.INDIBlob(blobProperty) = self {
+                return blobProperty
+            }
+            return nil
+        }
+    }
+    
+    public var isEmpty: Bool {
+        get {
+            switch self {
+            case .INDINumber(let numberProperty): numberProperty.isEmpty
+            case .INDISwitch(let switchProperty): switchProperty.isEmpty
+            case .INDIText(let textProperty): textProperty.isEmpty
+            case .INDILight(let lightProperty): lightProperty.isEmpty
+            case .INDIBlob(let blobProperty): blobProperty.isEmpty
+            default: false
+            }
+        }
+    }
+    
+    public var count: Int {
+        get {
+            switch self {
+            case .INDINumber(let numberProperty): numberProperty.count
+            case .INDISwitch(let switchProperty): switchProperty.count
+            case .INDIText(let textProperty): textProperty.count
+            case .INDILight(let lightProperty): lightProperty.count
+            case .INDIBlob(let blobProperty): blobProperty.count
+            default: .zero
+            }
+        }
+    }
+    
+    public var deviceName: String {
+        get {
+            self.property?.deviceName ?? ""
+        }
+    }
+    
+    public var propertyName: String {
+        get {
+            self.property?.propertyName ?? ""
+        }
+    }
+    
+    public var propertyLabel: String {
+        get {
+            self.property?.propertyLabel ?? ""
+        }
+    }
+    
+    public var groupName: String {
+        get {
+            self.property?.groupName ?? ""
+        }
+    }
+    
+    public var propertyState: INDIPropertyState {
+        get {
+            self.property?.propertyState ?? .Idle
+        }
+    }
+    
+    public var propertyPermission: INDIPropertyPermission {
+        get {
+            self.property?.propertyPermission ?? .ReadOnly
+        }
+    }
+    
     public func isDeviceNameMatch(_ otherName: String) -> Bool {
-        vectorProperty?.isDeviceNameMatch(otherName) ?? false
+        property?.isDeviceNameMatch(otherName) ?? false
     }
     
     public func isPropertyNameMatch(_ otherName: String) -> Bool {
-        vectorProperty?.isPropertyNameMatch(otherName) ?? false
+        property?.isPropertyNameMatch(otherName) ?? false
     }
     
     public func isPropertyLabelMatch(_ otherLabel: String) -> Bool {
-        vectorProperty?.isPropertyLabelMatch(otherLabel) ?? false
+        property?.isPropertyLabelMatch(otherLabel) ?? false
     }
 }
 
@@ -87,9 +168,20 @@ extension INDIPropertyType: Equatable {
         case (.INDIText(_), .INDIText(_)): true
         case (.INDILight(_), .INDILight(_)): true
         case (.INDIBlob(_), .INDIBlob(_)): true
-        case (_, .INDIUnknown): true
-        case (.INDIUnknown, _): true
+        case (.INDIUnknown, .INDIUnknown): true
         default: false
+        }
+    }
+    
+    public static func != (lhs: INDIPropertyType, rhs: INDIPropertyType) -> Bool {
+        switch (lhs, rhs) {
+        case (.INDINumber(_), .INDINumber(_)): false
+        case (.INDISwitch(_), .INDISwitch(_)): false
+        case (.INDIText(_), .INDIText(_)): false
+        case (.INDILight(_), .INDILight(_)): false
+        case (.INDIBlob(_), .INDIBlob(_)): false
+        case (.INDIUnknown, .INDIUnknown): false
+        default: true
         }
     }
 }

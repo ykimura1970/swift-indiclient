@@ -1,8 +1,13 @@
 //
-//  File.swift
+//  INDIHorizontalAxis.swift
 //  swift-indiclient
 //
-//  Created by 木村嘉男 on 2026/02/03.
+//  Created by Yoshio Kimura, Studio Parsec LLC on 2026/02/03.
 //
 
 import Foundation
+
+public enum INDIHorizontalAxis: Sendable {
+    case Azimuth
+    case Altitude
+}

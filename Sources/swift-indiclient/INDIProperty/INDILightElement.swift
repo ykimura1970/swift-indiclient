@@ -1,58 +1,57 @@
 //
-//  INDILightProperty.swift
+//  INDILightElement.swift
 //  INDIClient
 //
 //  Created by Yoshio Kimura, Studio Parsec LLC on 2024/11/27.
 //
 
-import SwiftUI
-import Combine
+import Foundation
 internal import NIOConcurrencyHelpers
 
-final public class INDILightProperty: INDIProperty, ObservableObject, @unchecked Sendable {
+final public class INDILightElement: INDIElement, @unchecked Sendable {
     // MARK: - Original Property
-    @Published internal(set) public var lightState: INDIPropertyState
+    internal var _lightState: INDIPropertyState
     
     // MARK: - Initializer
-    public init(elementName: String = "", elementLabel: String = "", lightState: INDIPropertyState = .Ok, parent: INDIVectorProperty? = nil) {
-        self.lightState = lightState
+    public init(elementName: String = "", elementLabel: String = "", lightState: INDIPropertyState = .Ok, parent: INDIProperty? = nil) {
+        self._lightState = lightState
         super.init(elementName: elementName, elementLabel: elementLabel, parent: parent)
     }
     
     // MARK: - Original Computed Property
-    var lightStateAsString: String {
+    public var lightState: INDIPropertyState {
         get {
-            lock.withLock({
-                self.lightState.toString()
+            self._lock.withLock({
+                self._lightState
             })
         }
     }
     
-    var lightStateAsColor: Color {
+    public var lightStateAsString: String {
         get {
-            lock.withLock({
-                self.lightState.toColor()
+            self._lock.withLock({
+                self._lightState.toString()
             })
         }
     }
     
     // MARK: - Original Method
     public func setLightState(lightState: INDIPropertyState) {
-        lock.withLock({
-            self.lightState = lightState
+        self._lock.withLock({
+            self._lightState = lightState
         })
     }
     
     public func setLightState(from stringLightState: String) {
-        lock.withLock({
-            self.lightState = INDIPropertyState.propertyState(from: stringLightState) ?? .Ok
+        self._lock.withLockVoid({
+            self._lightState = .init(rawValue: stringLightState) ?? .Ok
         })
     }
     
     // MARK: - Override Method
     public override func clear() {
-        lock.withLock({
-            self.lightState = .Ok
+        self._lock.withLockVoid({
+            self._lightState = .Ok
         })
         super.clear()
     }

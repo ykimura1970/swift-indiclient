@@ -8,30 +8,27 @@
 import Foundation
 
 /// Switch state.
-public enum INDISwitchState: Int, Sendable {
-    case Off = 0
-    case On
+public enum INDISwitchState: String, Sendable {
+    case Off = "Off"
+    case On = "On"
     
-    static func switchState(from stringSwitchState: String) -> INDISwitchState? {
-        switch stringSwitchState.lowercased() {
-        case "off": .Off
-        case "on": .On
-        default: nil
+    public init?(rawValue: String) {
+        switch rawValue.lowercased() {
+        case Self.Off.rawValue.lowercased(): self = .Off
+        case Self.On.rawValue.lowercased(): self = .On
+        default: return nil
         }
     }
     
-    static func switchState(from boolValue: Bool) -> INDISwitchState {
+    public init(from boolValue: Bool) {
         switch boolValue {
-        case false: .Off
-        case true: .On
+        case false: self = .Off
+        case true: self = .On
         }
     }
     
     func toString() -> String {
-        switch self {
-        case .Off: "Off"
-        case .On: "On"
-        }
+        self.rawValue
     }
     
     func toBool() -> Bool {

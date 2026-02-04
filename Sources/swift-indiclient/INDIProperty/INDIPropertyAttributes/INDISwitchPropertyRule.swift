@@ -1,5 +1,5 @@
 //
-//  INDISwitchVectorPropertyRule.swift
+//  INDISwitchPropertyRule.swift
 //  INDIClient
 //
 //  Created by Yoshio Kimura, Studio Parsec LLC on 2024/10/01.
@@ -8,7 +8,7 @@
 import Foundation
 
 /// INDISwitchVectorProperty rule hint.
-public enum INDISwitchVectorPropertyRule: String, Sendable {
+public enum INDISwitchPropertyRule: String, Sendable {
     case OneOfMany = "OneOfMany"
     case AtMostOne = "AtMostOne"
     case AnyOfMany = "AnyOfMany"

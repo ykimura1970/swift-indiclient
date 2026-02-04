@@ -10,38 +10,24 @@ internal import NIOCore
 internal import NIOConcurrencyHelpers
 internal import NIOPosix
 
-struct INDIProtocolRequestWrapper {
-    let request: INDIProtocolElement
-    let promise: EventLoopPromise<INDIProtocolResponse>
-}
-
 class INDIProtocolHandler: ChannelDuplexHandler, @unchecked Sendable {
     public typealias InboundIn = INDIProtocolElement
-    public typealias OutboundIn = INDIProtocolRequestWrapper
-    public typealias OutboundOut = INDIProtocolElement
+    public typealias OutboundIn = INDIProtocolElement
+    public typealias OutboundOut = ByteBuffer
+
+    weak private let _parent: INDISocket?
     
-    private var queue = CircularBuffer<(INDIProtocolElement, EventLoopPromise<INDIProtocolResponse>)>()
-    private var delegate: INDISocketDelegate?
-    
-    init(delegate: INDISocketDelegate? = nil) {
-        self.delegate = delegate
+    init(parent: INDISocket) {
+        self._parent = parent
     }
     
     // inbound
     public func channelRead(context: ChannelHandlerContext, data: NIOAny) {
-        let response = unwrapInboundIn(data)
-        _ = delegate?.processINDIProtocol(root: response)
+        let element = unwrapInboundIn(data)
         
-        if !queue.isEmpty {
-            if let request = queue.first?.0 {
-                if response.isAnswerBack(request: request) || !request.tagName.contains("set") {
-                    let promise = queue.removeFirst().1
-                    promise.succeed(INDIProtocolResponse(result: true))
-                }
-            }
+        if let socket = self._parent {
+            socket.processReceivedData(root: element)
         }
-        
-        context.fireChannelRead(data)
     }
     
     public func errorCaught(context: ChannelHandlerContext, error: any Error) {
@@ -50,13 +36,10 @@ class INDIProtocolHandler: ChannelDuplexHandler, @unchecked Sendable {
     
     // outobund
     public func write(context: ChannelHandlerContext, data: NIOAny, promise: EventLoopPromise<Void>?) {
-        let requestWrapper = unwrapOutboundIn(data)
-        context.write(wrapOutboundOut(requestWrapper.request), promise: promise)
+        let element = unwrapOutboundIn(data)
+        let sendData = element.createXMLString().data(using: .ascii)!
+        let buffer = ByteBuffer(data: sendData)
         
-        if requestWrapper.request.tagName.contains("new") {
-            queue.append((requestWrapper.request, requestWrapper.promise))
-        } else {
-            requestWrapper.promise.succeed(INDIProtocolResponse(result: true))
-        }
+        context.write(wrapOutboundOut(buffer), promise: nil)
     }
 }

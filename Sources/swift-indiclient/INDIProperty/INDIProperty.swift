@@ -8,145 +8,155 @@
 import Foundation
 internal import NIOConcurrencyHelpers
 
-public class INDIVectorProperty: NSObject, NSCopying, @unchecked Sendable {
+public class INDIProperty: NSObject, @unchecked Sendable {
     // MARK: - Fundamental Property
-    internal var deviceName: String
-    internal var propertyName: String
-    internal var propertyLabel: String
-    internal var groupName: String
-    internal var propertyPermission: INDIPropertyPermission
-    internal var timeout: Double
-    internal var propertyState: INDIPropertyState
-    internal var timestamp: String
-    internal var dynamic: Bool
-    internal let lock: NIOLock = NIOLock()
+    internal var _deviceName: String
+    internal var _propertyName: String
+    internal var _propertyLabel: String
+    internal var _groupName: String
+    internal var _propertyPermission: INDIPropertyPermission
+    internal var _timeout: Double
+    internal var _propertyState: INDIPropertyState
+    internal var _timestamp: String
+    internal var _dynamic: Bool
+    internal let _lock: NIOLock = NIOLock()
 
     // MARK: - Initializer
     public init(deviceName: String = "", propertyName: String = "", propertyLabel: String = "", groupName: String = "", propertyPermission: INDIPropertyPermission = .ReadOnly, timeout: Double = 0, propertyState: INDIPropertyState = .Idle, timestamp: String = "", dynamic: Bool = false) {
-        self.deviceName = deviceName
-        self.propertyName = propertyName
-        self.propertyLabel = propertyLabel
-        self.groupName = groupName
-        self.propertyPermission = propertyPermission
-        self.timeout = timeout
-        self.propertyState = propertyState
-        self.timestamp = timestamp
-        self.dynamic = dynamic
+        self._deviceName = deviceName
+        self._propertyName = propertyName
+        self._propertyLabel = propertyLabel
+        self._groupName = groupName
+        self._propertyPermission = propertyPermission
+        self._timeout = timeout
+        self._propertyState = propertyState
+        self._timestamp = timestamp
+        self._dynamic = dynamic
     }
     
     // MARK: - Computed Property
+    public var deviceName: String {
+        get {
+            self._deviceName
+        }
+    }
+    
+    public var propertyName: String {
+        get {
+            self._propertyName
+        }
+    }
+    
+    public var propertyLabel: String {
+        get {
+            self._propertyLabel
+        }
+    }
+    
+    public var groupName: String {
+        get {
+            self._groupName
+        }
+    }
+    
+    public var propertyPermission: INDIPropertyPermission {
+        get {
+            self._propertyPermission
+        }
+    }
+    
     public var propertyPermissionAsString: String {
         get {
-            propertyPermission.toString()
+            self._propertyPermission.toString()
+        }
+    }
+    
+    public var timeout: Double {
+        get {
+            self._timeout
+        }
+    }
+    
+    public var propertyState: INDIPropertyState {
+        get {
+            self._lock.withLock({
+                self._propertyState
+            })
         }
     }
     
     public var propertyStateAsString: String {
         get {
-            lock.withLock({
-                propertyState.toString()
+            self._lock.withLock({
+                self._propertyState.toString()
+            })
+        }
+    }
+    
+    public var timestamp: String {
+        get {
+            self._lock.withLock({
+                self._timestamp
             })
         }
     }
     
     public var isDynamic: Bool {
         get {
-            self.dynamic
+            self._dynamic
         }
     }
-    
     // MARK: - Protocol Method
-    public func copy(with zone: NSZone? = nil) -> Any {
-        lock.withLock({
-            INDIVectorProperty(deviceName: self.deviceName, propertyName: self.propertyName, propertyLabel: self.propertyLabel, groupName: self.groupName, propertyPermission: self.propertyPermission, timeout: self.timeout, propertyState: self.propertyState, timestamp: self.timestamp, dynamic: self.dynamic)
-        })
-    }
 
     // MARK: - Fundamental Method
     public func setDynamic(dynamic: Bool) {
-        self.dynamic = dynamic
+        self._dynamic = dynamic
     }
     
     public func setDeviceName(_ name: String) {
-        self.deviceName = name
+        self._deviceName = name
     }
     
     public func setPropertyName(_ name: String) {
-        self.propertyName = name
+        self._propertyName = name
     }
     
     public func setPropertyLabel(_ label: String) {
-        self.propertyLabel = label
+        self._propertyLabel = label
     }
     
     public func setGroupName(_ name: String) {
-        self.groupName = name
+        self._groupName = name
     }
     
     public func setPropertyPermission(_ propertyPermision: INDIPropertyPermission) {
-        self.propertyPermission = propertyPermision
+        self._propertyPermission = propertyPermision
     }
     
     public func setPropertyPermission(from stringPropertyPermission: String) {
-        self.propertyPermission = INDIPropertyPermission.propertyPermission(from: stringPropertyPermission) ?? .ReadOnly
+        self._propertyPermission = INDIPropertyPermission(rawValue: stringPropertyPermission) ?? .ReadOnly
     }
     
     public func setTimeout(_ timeout: Double) {
-        lock.withLock({
-            self.timeout = timeout
+        self._lock.withLockVoid({
+            self._timeout = timeout
         })
     }
     
     public func setPropertyState(_ propertyState: INDIPropertyState) {
-        lock.withLock({
-            self.propertyState = propertyState
+        self._lock.withLock({
+            self._propertyState = propertyState
         })
     }
     
     public func setPropertyState(from stringPropertyState: String) {
-        lock.withLock({
-            self.propertyState = INDIPropertyState.propertyState(from: stringPropertyState) ?? .Ok
+        self._lock.withLockVoid({
+            self._propertyState = INDIPropertyState(rawValue: stringPropertyState) ?? .Ok
         })
     }
     
     public func setTimestamp(_ timestamp: String) {
-        self.timestamp = timestamp
-    }
-
-    public func getDeviceName() -> String {
-        self.deviceName
-    }
-    
-    public func getPropertyName() -> String {
-        self.propertyName
-    }
-    
-    public func getPropertyLabel() -> String {
-        self.propertyLabel
-    }
-    
-    public func getGroupName() -> String {
-        self.groupName
-    }
-    
-    public func getPropertyPermission() -> INDIPropertyPermission {
-        self.propertyPermission
-    }
-    
-    public func getTimeout() -> Double {
-        lock.withLock({
-            self.timeout
-        })
-    }
-    
-    public func getPropertyState() -> INDIPropertyState {
-        lock.withLock({
-            self.propertyState
-        })
-    }
-    
-    public func getTimestamp() -> String {
-        self.timestamp
+        self._timestamp = timestamp
     }
     
     public func isDeviceNameMatch(_ otherName: String) -> Bool {
@@ -166,15 +176,15 @@ public class INDIVectorProperty: NSObject, NSCopying, @unchecked Sendable {
     }
     
     public func clear() {
-        self.deviceName = ""
-        self.propertyName = ""
-        self.propertyLabel = ""
-        self.groupName = ""
-        self.propertyPermission = .ReadOnly
-        self.timestamp = ""
-        lock.withLock({
-            self.timeout = 0.0
-            self.propertyState = .Idle
+        self._deviceName = ""
+        self._propertyName = ""
+        self._propertyLabel = ""
+        self._groupName = ""
+        self._propertyPermission = .ReadOnly
+        self._timestamp = ""
+        self._lock.withLock({
+            self._timeout = 0.0
+            self._propertyState = .Idle
         })
     }
 }

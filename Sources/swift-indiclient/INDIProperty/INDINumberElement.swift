@@ -1,124 +1,171 @@
 //
-//  INDINumberProperty.swift
+//  INDINumberElement.swift
 //  INDIClient
 //
 //  Created by Yoshio Kimura, Studio Parsec LLC on 2024/11/27.
 //
 
 import Foundation
-import Combine
+internal import Astronomy
 internal import NIOConcurrencyHelpers
 
-final public class INDINumberProperty: INDIProperty, ObservableObject, @unchecked Sendable {
+final public class INDINumberElement: INDIElement, NSCopying, @unchecked Sendable {
     // MARK: - Original Property
-    internal var format: String
-    internal var minValue: Double
-    internal var maxValue: Double
-    internal var stepValue: Double
-    @Published internal(set) public var value: Double
+    var _format: String
+    var _minValue: Double
+    var _maxValue: Double
+    var _stepValue: Double
+    var _value: Double
     
     // MARK: - Initializer
-    public init(elementName: String = "", elementLabel: String = "", format: String = "", minValue: Double = 0, maxValue: Double = 0, stepValue: Double = 0, value: Double = 0, parent: INDIVectorProperty? = nil) {
-        self.format = format
-        self.minValue = minValue
-        self.maxValue = maxValue
-        self.stepValue = stepValue
-        self.value = value
+    public init(elementName: String = "", elementLabel: String = "", format: String = "", minValue: Double = 0, maxValue: Double = 0, stepValue: Double = 0, value: Double = 0, parent: INDIProperty? = nil) {
+        self._format = format
+        self._minValue = minValue
+        self._maxValue = maxValue
+        self._stepValue = stepValue
+        self._value = value
         super.init(elementName: elementName, elementLabel: elementLabel, parent: parent)
     }
     
     // MARK: - Original Computed Property
     public var range: ClosedRange<Double> {
         get {
-            lock.withLock({
-                self.minValue...self.maxValue
+            self._lock.withLock({
+                self._minValue...self._maxValue
             })
         }
     }
     
     public var minMaxStep: (minValue: Double, maxValue: Double, stepValue: Double) {
         get {
-            lock.withLock({
-                (self.minValue, self.maxValue, self.stepValue)
+            self._lock.withLock({
+                (self._minValue, self._maxValue, self._stepValue)
+            })
+        }
+    }
+    
+    public var format: String {
+        get {
+            self._format
+        }
+    }
+    
+    public var minValue: Double {
+        get {
+            self._lock.withLock({
+                self._minValue
+            })
+        }
+    }
+    
+    public var maxValue: Double {
+        get {
+            self._lock.withLock({
+                self._maxValue
+            })
+        }
+    }
+    
+    public var stepValue: Double {
+        get {
+            self._lock.withLock({
+                self._stepValue
+            })
+        }
+    }
+    
+    public var value: Double {
+        get {
+            self._lock.withLock({
+                self._value
+            })
+        }
+    }
+    
+    public var valueAsInt: Int {
+        get {
+            self._lock.withLock({
+                Int(self._value)
+            })
+        }
+    }
+    
+    public var valueAsFormattedString: String {
+        get {
+            if self._format.hasSuffix("m") {
+                let fractionLength = Int(self._format.suffix(2).dropLast()) ?? 6
+                return self._lock.withLock({
+                    return self._value.formatted(.angle(fractionLength: fractionLength))
+                })
+            }
+            
+            return self._lock.withLock({
+                return String(format: self._format, self._value)
             })
         }
     }
     
     // MARK: - Original Method
     public func setFormat(_ format: String) {
-        self.format = format
+        self._format = format
     }
     
     public func setMin(_ minValue: Double) {
-        lock.withLock({
-            self.minValue = minValue
+        self._lock.withLockVoid({
+            self._minValue = minValue
         })
     }
     
     public func setMax(_ maxValue: Double) {
-        lock.withLock({
-            self.maxValue = maxValue
+        self._lock.withLockVoid({
+            self._maxValue = maxValue
         })
     }
     
+    public func setMinMax(minValue: Double, maxValue: Double) {
+        setMin(minValue)
+        setMax(maxValue)
+    }
+    
+    public func setMinMax(doubleRange: ClosedRange<Double>) {
+        setMin(doubleRange.lowerBound)
+        setMax(doubleRange.upperBound)
+    }
+    
     public func setStep(_ stepValue: Double) {
-        self.stepValue = stepValue
+        self._stepValue = stepValue
     }
     
     public func setValue(_ value: Double) {
-        lock.withLock({
-            self.value = value
+        self._lock.withLockVoid({
+            self._value = value
         })
     }
     
     public func setValue(_ value: Int) {
-        lock.withLock({
-            self.value = Double(value)
+        self._lock.withLock({
+            self._value = Double(value)
         })
     }
     
-    public func getFormat() -> String {
-        self.format
+    public func clone() -> INDINumberElement {
+        copy() as! INDINumberElement
     }
     
-    public func getMin() -> Double {
-        lock.withLock({
-            self.minValue
-        })
-    }
-    
-    public func getMax() -> Double {
-        lock.withLock({
-            self.maxValue
-        })
-    }
-    
-    public func getStep() -> Double {
-        lock.withLock({
-            self.stepValue
-        })
-    }
-    
-    public func getValue() -> Double {
-        lock.withLock({
-            self.value
+    public func copy(with zone: NSZone? = nil) -> Any {
+        self._lock.withLock({
+            INDINumberElement(elementName: self._elementName, elementLabel: self._elementLabel, format: self._format, minValue: self._minValue, maxValue: self._maxValue, stepValue: self._stepValue, value: self._value, parent: self._parent)
         })
     }
     
     // MARK: - Override Method
-    public override func copy(with zone: NSZone? = nil) -> Any {
-        lock.withLock({
-            INDINumberProperty(elementName: self.elementName, elementLabel: self.elementLabel, format: self.format, minValue: self.minValue, maxValue: self.maxValue, stepValue: self.stepValue, value: self.value, parent: self.parent)
-        })
-    }
-    
     public override func clear() {
-        self.format = ""
-        self.stepValue = 0
-        lock.withLock({
-            self.minValue = 0
-            self.maxValue = 0
-            self.value = 0
+        self._format = ""
+        self._stepValue = 0
+        self._lock.withLock({
+            self._minValue = 0
+            self._maxValue = 0
+            self._value = 0
         })
         super.clear()
     }

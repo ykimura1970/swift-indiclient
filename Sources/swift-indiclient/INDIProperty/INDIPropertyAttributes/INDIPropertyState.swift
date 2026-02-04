@@ -8,37 +8,23 @@
 import SwiftUI
 
 /// Property state.
-public enum INDIPropertyState: Int, Sendable {
-    case Idle = 0
-    case Ok
-    case Busy
-    case Alert
+public enum INDIPropertyState: String, Sendable {
+    case Idle = "Idle"
+    case Ok = "Ok"
+    case Busy = "Busy"
+    case Alert = "Alert"
     
-    static func propertyState(from stringPropertyState: String) -> INDIPropertyState? {
-        switch stringPropertyState.lowercased() {
-        case "idle": .Idle
-        case "ok": .Ok
-        case "busy": .Busy
-        case "alert": .Alert
-        default: nil
+    public init?(rawValue: String) {
+        switch rawValue.lowercased() {
+        case Self.Idle.rawValue.lowercased(): self = .Idle
+        case Self.Ok.rawValue.lowercased(): self = .Ok
+        case Self.Busy.rawValue.lowercased(): self = .Busy
+        case Self.Alert.rawValue.lowercased(): self = .Alert
+        default: return nil
         }
     }
     
     func toString() -> String {
-        switch self {
-        case .Idle: "Idle"
-        case .Ok: "Ok"
-        case .Busy: "Busy"
-        case .Alert: "Alert"
-        }
-    }
-    
-    public func toColor() -> Color {
-        switch self {
-        case .Idle: .green
-        case .Ok: .red
-        case .Busy: .yellow
-        case .Alert: .orange
-        }
+        self.rawValue
     }
 }

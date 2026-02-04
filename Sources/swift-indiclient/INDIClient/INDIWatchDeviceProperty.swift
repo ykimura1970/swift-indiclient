@@ -6,8 +6,9 @@
 //
 
 import Foundation
+internal import NIOConcurrencyHelpers
 
-final class INDIWatchDeviceProperty {
+final class INDIWatchDeviceProperty: @unchecked Sendable {
     struct INDIDeviceInfo {
         var device: INDIBaseDevice?
         var properties: Set<String> = []
@@ -21,92 +22,124 @@ final class INDIWatchDeviceProperty {
     }
     
     // MARK: - Fundamental Property
-    var watchedDevice: Set<String> = []
-    var data: [String : INDIDeviceInfo] = [:]
+    private var _watchedDevice: Set<String> = []
+    private var _data: [String : INDIDeviceInfo] = [:]
+    private let _lock = NIOLock()
     
     // MARK: - Original Computed Property
     var isEmpty: Bool {
         get {
-            self.data.isEmpty
+            self._lock.withLock({
+                self._data.isEmpty
+            })
         }
     }
     
     var devices: [INDIBaseDevice] {
         get {
-            self.data.values.compactMap({ $0.device })
+            self._lock.withLock({
+                self._data.values.compactMap({ $0.device })
+            })
         }
     }
     
     var deviceInfos: [INDIDeviceInfo] {
         get {
-            self.data.values.map({ $0 })
+            self._lock.withLock({
+                self._data.values.map({ $0 })
+            })
         }
     }
     
+    // MARK: - Fundamental Method
     func getDeviceByName(_ name: String) -> INDIBaseDevice? {
-        self.data[name]?.device
+        self._lock.withLock({
+            self._data[name]?.device
+        })
     }
     
     func ensureDeviceByName(name: String, constructHandler: @escaping () -> INDIBaseDevice) -> INDIDeviceInfo {
-        if self.data[name] == nil {
-            self.data[name] = INDIDeviceInfo()
-            self.data[name]?.device = constructHandler()
-            self.data[name]?.device?.setDeviceName(name)
-            self.data[name]?.device?.attach()
-            self.data[name]?.emitWatchDevice()
+        var deviceInfo = self._lock.withLock({
+            self._data[name]
+        })
+        
+        if deviceInfo == nil {
+            deviceInfo = INDIDeviceInfo()
+            deviceInfo!.device = constructHandler()
+            deviceInfo!.device?.setDeviceName(name)
+            deviceInfo!.device?.attach()
+            deviceInfo!.emitWatchDevice()
+            self._lock.withLockVoid({
+                self._data[name] = deviceInfo
+            })
         }
         
-        return self.data[name]!
+        return deviceInfo!
     }
     
-    func isDeviceWatched(deviceName: String) -> Bool {
-        watchedDevice.count == 0 || watchedDevice.firstIndex(of: deviceName) != nil
+    func isDeviceWatched(_ name: String) -> Bool {
+        self._lock.withLock({
+            self._watchedDevice.count == 0 || self._watchedDevice.firstIndex(of: name) != nil
+        })
     }
     
     func unwatchDevices() {
-        watchedDevice.removeAll()
+        self._lock.withLockVoid({
+            self._watchedDevice.removeAll()
+        })
     }
     
     func watchDevice(deviceName: String) {
-        watchedDevice.insert(deviceName)
+        self._lock.withLockVoid({
+            self._watchedDevice.insert(deviceName)
+        })
     }
     
     func watchDevice(deviceName: String, handler: @escaping (INDIBaseDevice) -> Void) {
-        if !watchedDevice.insert(deviceName).inserted {
-            self.data[deviceName]?.newDeviceHandler = handler
-        }
+        self._lock.withLockVoid({
+            self._watchedDevice.insert(deviceName)
+            self._data[deviceName]?.newDeviceHandler = handler
+        })
     }
     
     func watchProperty(deviceName: String, propertyName: String) {
-        if !watchedDevice.insert(deviceName).inserted {
-            self.data[deviceName]?.properties.insert(propertyName)
-        }
+        self._lock.withLockVoid({
+            if !self._watchedDevice.insert(deviceName).inserted {
+                self._data[deviceName]?.properties.insert(propertyName)
+            }
+        })
     }
     
     func clear() {
-        self.data.removeAll()
+        self._lock.withLockVoid({
+            self._data.removeAll()
+        })
     }
     
     func clearDevices() {
-        for key in data.keys {
-            data[key]?.device = nil
-        }
+        self._lock.withLockVoid({
+            for key in self._data.keys {
+                self._data[key]?.device = nil
+            }
+        })
     }
     
     func deleteDevice(device: INDIBaseDevice) -> Bool {
-        self.data.removeValue(forKey: device.deviceName) != nil
+        self._lock.withLock({
+            self._data.removeValue(forKey: device.deviceName) != nil
+        })
     }
     
     func processXML(root: INDIProtocolElement, constructHandler: @escaping () -> INDIBaseDevice = { INDIBaseDevice() }) -> Int {
-        guard let deviceName = root.getAttribute(name: "device") else { return 0 }
-        if deviceName.isEmpty || !isDeviceWatched(deviceName: deviceName) { return 0 }
+        guard let deviceName = root.getAttributeValue("device") else { return 0 }
+        if deviceName.isEmpty || !isDeviceWatched(deviceName) { return 0 }
         
         // Get the device information, if not available, create it.
         let deviceInfo = ensureDeviceByName(name: deviceName, constructHandler: constructHandler)
         
         // If ew are asked to watch for specific properties only, we ignore everything else.
         if deviceInfo.properties.count != 0 {
-            if deviceInfo.properties.firstIndex(of: root.getAttribute(name: "name") ?? "") == nil {
+            if deviceInfo.properties.firstIndex(of: root.getAttributeValue("name") ?? "") == nil {
                 return 0
             }
         }
@@ -114,13 +147,13 @@ final class INDIWatchDeviceProperty {
         let defVectors = ["defNumberVector", "defSwitchVector", "defTextVector", "defLightVector", "defBLOBVector"]
         
         if defVectors.firstIndex(of: root.tagName) != nil {
-            return deviceInfo.device?.buildVectorProperty(root: root) ?? INDIBaseDevice.INDIError.DeviceNotFound.rawValue
+            return deviceInfo.device?.buildProperty(root: root) ?? INDIErrorType.DeviceNotFound.rawValue
         }
         
         let setVectors = ["setNumberVector", "setSwitchVector", "setTextVector", "setLightVector", "setBLOBVector"]
         
         if setVectors.firstIndex(of: root.tagName) != nil {
-            return deviceInfo.device?.setValue(root: root) ?? INDIBaseDevice.INDIError.DeviceNotFound.rawValue
+            return deviceInfo.device?.setValue(root: root) ?? INDIErrorType.DeviceNotFound.rawValue
         }
         
         return -1

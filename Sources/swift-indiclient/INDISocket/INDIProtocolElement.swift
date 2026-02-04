@@ -1,6 +1,6 @@
 //
 //  INDIProtocolElement.swift
-//  INDIClient
+//  swift-indiclient
 //
 //  Created by Yoshio Kimura, Studio Parsec LLC on 2024/12/22.
 //
@@ -15,26 +15,26 @@ public struct INDIProtocolElement: Equatable, Sendable {
     
     // MARK: - Fundamental Property
     public let tagName: String
-    private(set) public var stringValue: String?
-    private(set) public var children: [INDIProtocolElement] = []
-    private(set) public var attributes: [Attribute] = []
+    private(set) var stringValue: String?
+    private(set) var children: [INDIProtocolElement] = []
+    private(set) var attributes: [Attribute] = []
     
     // MARK: - Computed Property
     public var device: String? {
         get {
-            getAttribute(name: "device")
+            self.attributes.first(where: { $0.key == "device" })?.value
         }
     }
     
     public var name: String? {
         get {
-            getAttribute(name: "name")
+            self.attributes.first(where: { $0.key == "name" })?.value
         }
     }
     
     public var state: String? {
         get {
-            getAttribute(name: "state")
+            self.attributes.first(where: { $0.key == "state" })?.value
         }
     }
     
@@ -52,37 +52,31 @@ public struct INDIProtocolElement: Equatable, Sendable {
     }
     
     public mutating func addStringValue(string: String) {
-        self.stringValue = string
-    }
-    
-    public func getAttribute(name: String) -> String? {
-        attributes.first(where: { $0.key == name })?.value
-    }
-    
-    public func isAnswerBack(request: INDIProtocolElement) -> Bool {
-        guard let requestDevice = request.device, let requestName = request.name else { return false }
-        guard let responseDevice = device, let responseName = name else { return false }
-        
-        if requestDevice == responseDevice && requestName == responseName && (state == INDIPropertyState.Ok.toString() || state == INDIPropertyState.Alert.toString()) {
-            return state == INDIPropertyState.Ok.toString()
+        if self.stringValue == nil {
+            self.stringValue = string
+        } else {
+            self.stringValue! += string
         }
-        return false
+    }
+    
+    public func getAttributeValue(_ key: String) -> String? {
+        self.attributes.first(where: { $0.key == key })?.value
     }
     
     public func isWhitespaceWithNoElements() -> Bool {
-        let stringValueInWhitespaceOrNil = stringValue?.isAllWhitespace() ?? true
-        return self.tagName == "" && stringValueInWhitespaceOrNil && self.children.isEmpty
+        let stringValueInWhitespaceOrNil = self.stringValue?.isAllWhitespace() ?? true
+        return self.tagName.isEmpty && stringValueInWhitespaceOrNil && self.children.isEmpty
     }
     
     public func createXMLString() -> String {
         var xmlString: String = ""
         
-        xmlString += "<\(tagName)"
-        for attribute in attributes {
+        xmlString += "<\(self.tagName)"
+        for attribute in self.attributes {
             xmlString += " \(attribute.key)='\(attribute.value)'"
         }
         
-        if children.isEmpty {
+        if self.children.isEmpty {
             if let stringValue {
                 xmlString += ">\n      \(stringValue)\n"
             } else {

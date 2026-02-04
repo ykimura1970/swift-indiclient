@@ -1,5 +1,5 @@
 //
-//  INDIProperty.swift
+//  INDIElement.swift
 //  INDIClient
 //
 //  Created by Yoshio Kimura, Studio Parsec LLC on 2024/11/27.
@@ -8,7 +8,7 @@
 import Foundation
 internal import NIOConcurrencyHelpers
 
-public class INDIProperty: NSObject, Identifiable, @unchecked Sendable {
+public class INDIElement: NSObject, Identifiable, @unchecked Sendable {
     // MARK: - Fundamental Property
     internal var _elementName: String
     internal var _elementLabel: String

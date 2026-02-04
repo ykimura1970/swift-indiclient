@@ -27,6 +27,7 @@ class INDIProtocolStackParser: NSObject {
         guard let error = xmlParser.parserError else {
             throw DecodingError.dataCorrupted(DecodingError.Context(codingPath: [], debugDescription: "The given data could not be parsed into XML."))
         }
+        
         throw error
     }
 }
@@ -44,11 +45,11 @@ extension INDIProtocolStackParser: XMLParserDelegate {
         })
         
         let element = INDIProtocolElement(tagName: elementName, attributes: attributes)
-        stack.append(element)
+        self.stack.append(element)
     }
     
     func parser(_ parser: XMLParser, didEndElement elementName: String, namespaceURI: String?, qualifiedName qName: String?) {
-        guard let element = stack.popLast() else { return }
+        guard let element = self.stack.popLast() else { return }
         
         let updatedElement = elementWithFilteredElements(element: element)
         
@@ -56,8 +57,8 @@ extension INDIProtocolStackParser: XMLParserDelegate {
             currentElement.addChild(child: updatedElement)
         })
         
-        if stack.isEmpty {
-            root = updatedElement
+        if self.stack.isEmpty {
+            self.root = updatedElement
         }
     }
     
@@ -66,7 +67,7 @@ extension INDIProtocolStackParser: XMLParserDelegate {
         guard processedString.count > 0, string.count != 0 else { return }
         
         withCurrentElement({ currentElement in
-            currentElement.addStringValue(string: string)
+            currentElement.addStringValue(string: processedString)
         })
     }
 }

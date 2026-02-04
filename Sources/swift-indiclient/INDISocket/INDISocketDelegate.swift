@@ -12,5 +12,5 @@ public protocol INDISocketDelegate: AnyObject {
     /// - Parameters:
     ///  - sender: The INDISocket instance from which the connection originates.
     ///  - root: INDIProtocolElement instance.
-    func processINDIProtocol(root: INDIProtocolElement) -> Int
+    func processINDIProtocol(_ sender: INDISocket, root: INDIProtocolElement) -> Int
 }

@@ -1,5 +1,5 @@
 //
-//  INDINumberVectorProperty.swift
+//  INDINumberProperty.swift
 //  INDIClient
 //
 //  Created by Yoshio Kimura, Studio Parsec on 2024/11/27.
@@ -7,20 +7,28 @@
 
 import Foundation
 
-final public class INDINumberVectorProperty: INDIVectorPropertyTemplate<INDINumberProperty>, @unchecked Sendable {
-    // MARK: - Override Method
-    public override func copy(with zone: NSZone? = nil) -> Any {
-        var copiedProperties = [INDINumberProperty]()
+final public class INDINumberProperty: INDIPropertyTemplate<INDINumberElement>, NSCopying, @unchecked Sendable {
+    // MARK: - Original Method
+    public func clone() -> INDINumberProperty {
+        copy() as! INDINumberProperty
+    }
+    
+    public func copy(with zone: NSZone? = nil) -> Any {
+        var copiedElements = [INDINumberElement]()
         
-        let newNumberVectorProperty = lock.withLock({
-            copiedProperties = self.properties.map({ $0.copy() as! INDINumberProperty })
-            
-            return INDINumberVectorProperty(deviceName: self.deviceName, propertyName: self.propertyName, propertyLabel: self.propertyLabel, groupName: self.groupName, propertyPermission: self.propertyPermission, timeout: self.timeout, propertyState: self.propertyState, timestamp: self.timestamp, dynamic: self.dynamic)
+        self._lock.withLockVoid({
+            self._elements.forEach({ element in
+                copiedElements.append(element.clone())
+            })
         })
         
-        newNumberVectorProperty.appendProperties(contentOf: copiedProperties)
+        let newNumberProperty = self._lock.withLock({
+            INDINumberProperty(deviceName: self._deviceName, propertyName: self._propertyName, propertyLabel: self._propertyLabel, groupName: self._groupName, propertyPermission: self._propertyPermission, timeout: self._timeout, propertyState: self._propertyState, timestamp: self._timestamp, dynamic: self._dynamic)
+        })
         
-        return newNumberVectorProperty
+        newNumberProperty.appendElements(contentOf: copiedElements)
+        
+        return newNumberProperty
     }
     
     internal override func createNewCommand() -> INDIProtocolElement {
@@ -46,12 +54,12 @@ final public class INDINumberVectorProperty: INDIVectorPropertyTemplate<INDINumb
     internal override func createNewChildrenINDIProtocolElement() -> [INDIProtocolElement] {
         var children = [INDIProtocolElement]()
         
-        lock.withLock({
-            self.properties.forEach({ property in
-                var element = INDIProtocolElement(tagName: "oneNumber")
-                element.addAttribute(attribute: INDIProtocolElement.Attribute(key: "name", value: property.elementName))
-                element.addStringValue(string: String(format: "      %.20g", property.value))
-                children.append(element)
+        self._lock.withLockVoid({
+            self._elements.forEach({ element in
+                var child = INDIProtocolElement(tagName: "oneNumber")
+                child.addAttribute(attribute: INDIProtocolElement.Attribute(key: "name", value: element.elementName))
+                child.addStringValue(string: String(format: "      %.20g", element.value))
+                children.append(child)
             })
         })
         

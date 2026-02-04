@@ -17,7 +17,8 @@ let package = Package(
     ],
     dependencies: [
         .package(url: "https://github.com/apple/swift-collections.git", .upToNextMajor(from: "1.1.4")),
-        .package(url: "https://github.com/apple/swift-nio.git", .upToNextMajor(from: "2.89.0"))
+        .package(url: "https://github.com/apple/swift-nio.git", .upToNextMajor(from: "2.89.0")),
+        .package(url: "https://github.com/ykimura1970/swift-astronomy.git", .upToNextMajor(from: "1.0.2"))
     ],
     targets: [
         // Targets are the basic building blocks of a package, defining a module or a test suite.
@@ -31,7 +32,8 @@ let package = Package(
                 .product(name: "NIOConcurrencyHelpers", package: "swift-nio"),
                 .product(name: "NIOFoundationCompat", package: "swift-nio"),
                 .product(name: "NIOPosix", package: "swift-nio"),
-                .product(name: "NIOWebSocket", package: "swift-nio")
+                .product(name: "NIOWebSocket", package: "swift-nio"),
+                .product(name: "swift-astronomy", package: "swift-astronomy")
             ]
         )
     ],
