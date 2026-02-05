@@ -6,7 +6,6 @@
 //
 
 import Foundation
-internal import Astronomy
 internal import NIOConcurrencyHelpers
 
 final public class INDINumberElement: INDIElement, NSCopying, @unchecked Sendable {
