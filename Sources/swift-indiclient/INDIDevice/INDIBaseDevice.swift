@@ -233,7 +233,7 @@ public extension INDIBaseDevice {
         getProperty(propertyName: propertyName, propertyType: .INDIText())?.textProperty
     }
     
-    func getLightVectorProperty(propertyName: String) -> INDILightProperty? {
+    func getLightProperty(propertyName: String) -> INDILightProperty? {
         getProperty(propertyName: propertyName, propertyType: .INDILight())?.lightProperty
     }
     
@@ -245,7 +245,7 @@ public extension INDIBaseDevice {
         getProperty(propertyName: propertyName)?.propertyState ?? .Idle
     }
     
-    func getVectorPropertyPermission(propertyName: String) -> INDIPropertyPermission {
+    func getPropertyPermission(propertyName: String) -> INDIPropertyPermission {
         getProperty(propertyName: propertyName)?.propertyPermission ?? .ReadOnly
     }
     
