@@ -222,12 +222,10 @@ open class INDIBaseClient: INDIBaseDeviceDelegate, @unchecked Sendable {
     public func getBLOBMode(deviceName: String, propertyName: String = "") -> INDIBlobHandling {
         var blobHandling: INDIBlobHandling = .Also
         
-        self._lock.withLockVoid({
-            if let blobMode = findBLOBMode(deviceName: deviceName, propertyName: propertyName) {
-                blobHandling = blobMode.blobHandling
-            }
-        })
-        
+        if let blobMode = findBLOBMode(deviceName: deviceName, propertyName: propertyName) {
+            blobHandling = blobMode.blobHandling
+        }
+
         return blobHandling
     }
     
@@ -238,7 +236,9 @@ open class INDIBaseClient: INDIBaseDeviceDelegate, @unchecked Sendable {
     }
     
     public func findBIndexOfBLOBMode(deviceName: String, propertyName: String = "") -> Int {
-        self._blobModes.firstIndex(where: { $0.device == deviceName && (propertyName.isEmpty || $0.propertyName == propertyName) }) ?? -1
+        self._lock.withLock({
+            self._blobModes.firstIndex(where: { $0.device == deviceName && (propertyName.isEmpty || $0.propertyName == propertyName) }) ?? -1
+        })
     }
     
     public func clear() {
