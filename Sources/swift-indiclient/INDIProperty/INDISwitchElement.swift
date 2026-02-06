@@ -38,7 +38,7 @@ final public class INDISwitchElement: INDIElement, @unchecked Sendable {
     public var switchStateAsBool: Bool {
         get {
             self._lock.withLock({
-                self.switchState.toBool()
+                self._switchState.toBool()
             })
         }
     }
