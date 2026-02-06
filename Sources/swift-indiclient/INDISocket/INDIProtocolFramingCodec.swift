@@ -31,7 +31,7 @@ final class INDIProtocolFramingCodec: ByteToMessageDecoder, Sendable {
         var count = buffer.readableBytes
         
         if !parser.parse() {
-            if parser.lineNumber > 1 || parser.lineNumber == 0 {
+            if parser.columnNumber > 1 || parser.lineNumber == 0 {
                 return .needMoreData
             }
             
