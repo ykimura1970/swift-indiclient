@@ -31,11 +31,11 @@ final class INDIProtocolFramingCodec: ByteToMessageDecoder, Sendable {
         var count = buffer.readableBytes
         
         if !parser.parse() {
-            let lines = buffer.getString(at: buffer.readerIndex, length: buffer.readableBytes)!.split(separator: "\n")
-            
             if parser.lineNumber > 1 || parser.lineNumber == 0 {
                 return .needMoreData
             }
+            
+            let lines = buffer.getString(at: buffer.readerIndex, length: buffer.readableBytes)!.split(separator: "\n")
             
             count = lines[0..<parser.lineNumber - 1].reduce(0, { $0 + $1.count }) + parser.lineNumber - 1
             

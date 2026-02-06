@@ -131,6 +131,9 @@ final class INDIWatchDeviceProperty: @unchecked Sendable {
     }
     
     func processXML(root: INDIProtocolElement, constructHandler: @escaping () -> INDIBaseDevice = { INDIBaseDevice() }) -> Int {
+        #if DEBUG
+        print("\(root)")
+        #endif
         guard let deviceName = root.getAttributeValue("device") else { return 0 }
         if deviceName.isEmpty || !isDeviceWatched(deviceName) { return 0 }
         

@@ -319,7 +319,7 @@ public extension INDIBaseDevice {
                     element.setStep(Double(child.getAttributeValue("step") ?? "") ?? 0)
                     element.setValue(Double(child.stringValue ?? "") ?? 0)
                     
-                    if !element.isElementNameMatch("") {
+                    if !element.elementName.isEmpty {
                         numberProperty.appendElement(element: element)
                     }
                 }
@@ -337,7 +337,7 @@ public extension INDIBaseDevice {
                     element.setElementLabel(child.getAttributeValue("label") ?? "")
                     element.setSwitchState(from: child.stringValue ?? "")
                     
-                    if !element.isElementNameMatch("") {
+                    if !element.elementName.isEmpty {
                         switchProperty.appendElement(element: element)
                     }
                 }
@@ -355,7 +355,7 @@ public extension INDIBaseDevice {
                     element.setElementLabel(child.getAttributeValue("label") ?? "")
                     element.setText(child.stringValue ?? "")
                     
-                    if !element.isElementNameMatch("") {
+                    if !element.elementName.isEmpty {
                         textProperty.appendElement(element: element)
                     }
                 }
@@ -373,7 +373,7 @@ public extension INDIBaseDevice {
                     element.setElementLabel(child.getAttributeValue("label") ?? "")
                     element.setLightState(from: child.stringValue ?? "")
                     
-                    if !element.isElementNameMatch("") {
+                    if !element.elementName.isEmpty {
                         lightProperty.appendElement(element: element)
                     }
                 }
@@ -391,7 +391,7 @@ public extension INDIBaseDevice {
                     element.setElementLabel(child.getAttributeValue("label") ?? "")
                     element.setFormat(child.getAttributeValue("format") ?? "")
                     
-                    if !element.isElementNameMatch("") {
+                    if !element.elementName.isEmpty {
                         blobProperty.appendElement(element: element)
                     }
                 }
