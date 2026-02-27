@@ -8,7 +8,7 @@
 import Foundation
 
 /// INDI Property type.
-public enum INDIPropertyType {
+public enum INDIPropertyType: Sendable {
     case INDINumber(_ property: INDINumberProperty = INDINumberProperty())
     case INDISwitch(_ property: INDISwitchProperty = INDISwitchProperty())
     case INDIText(_ property: INDITextProperty = INDITextProperty())
