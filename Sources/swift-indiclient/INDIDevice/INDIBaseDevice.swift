@@ -41,54 +41,58 @@ final public class INDIBaseDevice: @unchecked Sendable {
         case PowerInterface             = 0b01000000000000000000    // Power Controller interface.
         case IMUInterface               = 0b10000000000000000000    // Intertial Measurement Unit interface.
         case SensorInterface            = 0b00000110100000000000    // Correlator & Spectrograph & Detector
-        
-        public static let General = "General"
-        public static let Telescope = "Mount"
-        public static let CCD = "Camera"
-        public static let Guider = "Guider"
-        public static let Focuser = "Focuser"
-        public static let Filter = "FilterWheel"
-        public static let Dome = "Dome"
-        public static let GPS = "GPS"
-        public static let Weather = "Weather"
-        public static let AdaptiveOptics = "AdaptiveOptics"
-        public static let DustCap = "DustCap"
-        public static let LightBox = "LightBox"
-        public static let Detector = "Detector"
-        public static let Rotator = "Rotator"
-        public static let Spectrograph = "Spectrograph"
-        public static let Correlator = "Correlator"
-        public static let Auxiliary = "Auxiliary"
-        public static let Output = "Output"
-        public static let Input = "Input"
-        public static let Power = "Power"
-        public static let IMU = "IMU"
-        public static let Sensor = "Sensor"
+
+        public init(rawValue: Int) {
+            switch rawValue {
+            case Self.TelescopeInterface.rawValue: self = .TelescopeInterface
+            case Self.CCDInterface.rawValue: self = .CCDInterface
+            case Self.GuiderInterface.rawValue: self = .GuiderInterface
+            case Self.FocuserInterface.rawValue: self = .FocuserInterface
+            case Self.FilterInterface.rawValue: self = .FilterInterface
+            case Self.DomeInterface.rawValue: self = .DomeInterface
+            case Self.GPSInterface.rawValue: self = .GPSInterface
+            case Self.WeatherInterface.rawValue: self = .WeatherInterface
+            case Self.AdaptiveOpticsInterface.rawValue: self = .AdaptiveOpticsInterface
+            case Self.DustcapInterface.rawValue: self = .DustcapInterface
+            case Self.LightboxInterface.rawValue: self = .LightboxInterface
+            case Self.DetectorInterface.rawValue: self = .DetectorInterface
+            case Self.RotatorInterface.rawValue: self = .RotatorInterface
+            case Self.SpectrographInterface.rawValue: self = .SpectrographInterface
+            case Self.CorrelatorInterface.rawValue: self = .CorrelatorInterface
+            case Self.AuxInterface.rawValue: self = .AuxInterface
+            case Self.OutputInterface.rawValue: self = .OutputInterface
+            case Self.InputInterface.rawValue: self = .InputInterface
+            case Self.PowerInterface.rawValue: self = .PowerInterface
+            case Self.IMUInterface.rawValue: self = .IMUInterface
+            case Self.SensorInterface.rawValue: self = .SensorInterface
+            default: self = .GeneralInterface
+            }
+        }
         
         func toString() -> String {
             switch self {
-            case .GeneralInterface: Self.General
-            case .TelescopeInterface: Self.Telescope
-            case .CCDInterface: Self.CCD
-            case .GuiderInterface: Self.Guider
-            case .FocuserInterface: Self.Focuser
-            case .FilterInterface: Self.Filter
-            case .DomeInterface: Self.Dome
-            case .GPSInterface: Self.GPS
-            case .WeatherInterface: Self.Weather
-            case .AdaptiveOpticsInterface: Self.AdaptiveOptics
-            case .DustcapInterface: Self.DustCap
-            case .LightboxInterface: Self.LightBox
-            case .DetectorInterface: Self.Detector
-            case .RotatorInterface: Self.Rotator
-            case .SpectrographInterface: Self.Spectrograph
-            case .CorrelatorInterface: Self.Correlator
-            case .AuxInterface: Self.Auxiliary
-            case .OutputInterface: Self.Output
-            case .InputInterface: Self.Input
-            case .PowerInterface: Self.Power
-            case .IMUInterface: Self.IMU
-            case .SensorInterface: Self.Sensor
+            case .GeneralInterface: "General"
+            case .TelescopeInterface: "Mount"
+            case .CCDInterface: "Camera"
+            case .GuiderInterface: "Guider"
+            case .FocuserInterface: "Focuser"
+            case .FilterInterface: "FilterWheel"
+            case .DomeInterface: "Dome"
+            case .GPSInterface: "GPS"
+            case .WeatherInterface: "Weather"
+            case .AdaptiveOpticsInterface: "AdaptiveOptics"
+            case .DustcapInterface: "DustCap"
+            case .LightboxInterface: "LightBox"
+            case .DetectorInterface: "Detector"
+            case .RotatorInterface: "Rotator"
+            case .SpectrographInterface: "Spectrograph"
+            case .CorrelatorInterface: "Correlator"
+            case .AuxInterface: "Auxiliary"
+            case .OutputInterface: "Output"
+            case .InputInterface: "Input"
+            case .PowerInterface: "Power"
+            case .IMUInterface: "IMU"
+            case .SensorInterface: "Sensor"
             }
         }
     }
