@@ -69,7 +69,7 @@ final public class INDIBaseDevice: @unchecked Sendable {
             }
         }
         
-        func toString() -> String {
+        public func toString() -> String {
             switch self {
             case .GeneralInterface: "General"
             case .TelescopeInterface: "Mount"
