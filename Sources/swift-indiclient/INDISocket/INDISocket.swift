@@ -63,6 +63,7 @@ public class INDISocket: @unchecked Sendable {
     public func disconnectFromHost() async -> Bool {
         guard let channel = self.channel else { return false }
         channel.close(promise: nil)
+        self.channel = nil
         
         do {
             try await group.shutdownGracefully()
