@@ -21,11 +21,13 @@ open class INDIBaseClient: INDIBaseDeviceDelegate, @unchecked Sendable {
     internal var _timeout: Float = 3
     internal var _watchDevice: INDIWatchDeviceProperty = INDIWatchDeviceProperty()
     internal var _blobModes: [INDIBlobMode] = []
-    internal let _socket: INDISocket
+    internal var _socket: INDISocket
+    internal var _numberOfThreads: Int
     public let _lock = NIOLock()
     
     // MARK: - Initializer
     public init(numberOfThreads: Int = 1) {
+        self._numberOfThreads = numberOfThreads
         self._socket = INDISocket(numberOfThreads: numberOfThreads)
     }
     
@@ -71,6 +73,7 @@ open class INDIBaseClient: INDIBaseDeviceDelegate, @unchecked Sendable {
         
         print("INDIBaseClient.connectServer: creating new connection...")
         
+        self._socket = INDISocket(numberOfThreads: self._numberOfThreads)
         self._socket.delegate = self
         if await !self._socket.connectToHost(hostname: self._hostname, port: self._port) {
             self._connected.store(false, ordering: .relaxed)
