@@ -73,7 +73,6 @@ open class INDIBaseClient: INDIBaseDeviceDelegate, @unchecked Sendable {
         
         print("INDIBaseClient.connectServer: creating new connection...")
         
-        self._socket = INDISocket(numberOfThreads: self._numberOfThreads)
         self._socket.delegate = self
         if await !self._socket.connectToHost(hostname: self._hostname, port: self._port) {
             self._connected.store(false, ordering: .relaxed)
