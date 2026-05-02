@@ -18,29 +18,32 @@ final public class INDIBaseDevice: @unchecked Sendable {
         case WatchNewOrUpdate   // Applies when a property appears or is updated, i.e. both of the above.
     }
     
-    public enum INDIDriverInterface: Int {
-        case GeneralInterface           = 0b00000000000000000000    // Default interface for all INDI devices.
-        case TelescopeInterface         = 0b00000000000000000001    // Telescope interface, must subclass INDI Telescope.
-        case CCDInterface               = 0b00000000000000000010    // CCD interface, must subclass INDI CCD.
-        case GuiderInterface            = 0b00000000000000000100    // Guider interface, must subclass INDI GuiderInterface.
-        case FocuserInterface           = 0b00000000000000001000    // Focuser interface, must subclass INDI FocuserInterface.
-        case FilterInterface            = 0b00000000000000010000    // Filter interface, must subclass INDI FilterInterface.
-        case DomeInterface              = 0b00000000000000100000    // Dome interface, must subclass INDI Dome.
-        case GPSInterface               = 0b00000000000001000000    // GPS interface, must subclass INDi GPS.
-        case WeatherInterface           = 0b00000000000010000000    // Weather interface, must subclass INDI Weather.
-        case AdaptiveOpticsInterface    = 0b00000000000100000000    // Adaptive Optics interface.
-        case DustcapInterface           = 0b00000000001000000000    // Dust cap interface.
-        case LightboxInterface          = 0b00000000010000000000    // Light box interface.
-        case DetectorInterface          = 0b00000000100000000000    // Detector interface, must subclass INDI Detector.
-        case RotatorInterface           = 0b00000001000000000000    // Rotator interface, must subclass INDI RotatorInterface.
-        case SpectrographInterface      = 0b00000010000000000000    // Spectrograph interface.
-        case CorrelatorInterface        = 0b00000100000000000000    // Correlators (interferometers) interface.
-        case AuxInterface               = 0b00001000000000000000    // Auxiliary interface.
-        case OutputInterface            = 0b00010000000000000000    // Digital Output (e.g. Relay) interface.
-        case InputInterface             = 0b00100000000000000000    // Digital/Analog Input (e.g. GPIO) interface.
-        case PowerInterface             = 0b01000000000000000000    // Power Controller interface.
-        case IMUInterface               = 0b10000000000000000000    // Intertial Measurement Unit interface.
-        case SensorInterface            = 0b00000110100000000000    // Correlator & Spectrograph & Detector
+    public enum INDIDriverInterface: Int, Sendable {
+        static let range: ClosedRange<Int> = 0...20
+        
+        case GeneralInterface                   = 0b000000000000000000000    // Default interface for all INDI devices.
+        case TelescopeInterface                 = 0b000000000000000000001    // Telescope interface, must subclass INDI Telescope.
+        case CCDInterface                       = 0b000000000000000000010    // CCD interface, must subclass INDI CCD.
+        case GuiderInterface                    = 0b000000000000000000100    // Guider interface, must subclass INDI GuiderInterface.
+        case FocuserInterface                   = 0b000000000000000001000    // Focuser interface, must subclass INDI FocuserInterface.
+        case FilterInterface                    = 0b000000000000000010000    // Filter interface, must subclass INDI FilterInterface.
+        case DomeInterface                      = 0b000000000000000100000    // Dome interface, must subclass INDI Dome.
+        case GPSInterface                       = 0b000000000000001000000    // GPS interface, must subclass INDi GPS.
+        case WeatherInterface                   = 0b000000000000010000000    // Weather interface, must subclass INDI Weather.
+        case AdaptiveOpticsInterface            = 0b000000000000100000000    // Adaptive Optics interface.
+        case DustcapInterface                   = 0b000000000001000000000    // Dust cap interface.
+        case LightboxInterface                  = 0b000000000010000000000    // Light box interface.
+        case DetectorInterface                  = 0b000000000100000000000    // Detector interface, must subclass INDI Detector.
+        case RotatorInterface                   = 0b000000001000000000000    // Rotator interface, must subclass INDI RotatorInterface.
+        case SpectrographInterface              = 0b000000010000000000000    // Spectrograph interface.
+        case CorrelatorInterface                = 0b000000100000000000000    // Correlators (interferometers) interface.
+        case AuxInterface                       = 0b000001000000000000000    // Auxiliary interface.
+        case OutputInterface                    = 0b000010000000000000000    // Digital Output (e.g. Relay) interface.
+        case InputInterface                     = 0b000100000000000000000    // Digital/Analog Input (e.g. GPIO) interface.
+        case PowerInterface                     = 0b001000000000000000000    // Power Controller interface.
+        case IMUInterface                       = 0b010000000000000000000    // Intertial Measurement Unit interface.
+        case PolarAlignmentCorrectionInterface  = 0b100000000000000000000    // Polar Alignment Correction interface, must subclass INDI PolarAlignmentCorrectionInterface.
+        case SensorInterface                    = 0b000000110100000000000    // Correlator & Spectrograph & Detector
 
         public init(rawValue: Int) {
             switch rawValue {
@@ -64,6 +67,7 @@ final public class INDIBaseDevice: @unchecked Sendable {
             case Self.InputInterface.rawValue: self = .InputInterface
             case Self.PowerInterface.rawValue: self = .PowerInterface
             case Self.IMUInterface.rawValue: self = .IMUInterface
+            case Self.PolarAlignmentCorrectionInterface.rawValue: self = .PolarAlignmentCorrectionInterface
             case Self.SensorInterface.rawValue: self = .SensorInterface
             default: self = .GeneralInterface
             }
@@ -92,6 +96,7 @@ final public class INDIBaseDevice: @unchecked Sendable {
             case .InputInterface: "Input"
             case .PowerInterface: "Power"
             case .IMUInterface: "IMU"
+            case .PolarAlignmentCorrectionInterface: "PolarAlignmentCorrection"
             case .SensorInterface: "Sensor"
             }
         }
