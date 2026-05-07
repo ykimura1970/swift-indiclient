@@ -146,7 +146,6 @@ open class INDIBaseClient: INDIBaseDeviceDelegate, @unchecked Sendable {
     /// - Parameters:
     ///  - deviceName: Name of the device to disconnect.
     public func disconnectDevice(deviceName: String) {
-        print("INDIBaseDevice.disconnectDevice() \(deviceName)")
         setDriverConnection(deviceName: deviceName, status: false)
     }
     
@@ -405,7 +404,7 @@ public extension INDIBaseClient {
             switchProperty.reset()
             switchProperty[0].setSwitchState(.On)
             switchProperty[1].setSwitchState(.Off)
-            print("\(deviceName) is CONNET = .On")
+
             sendNewSwitchProperty(switchProperty: switchProperty)
         } else {
             // If there is no need to do anything, i.e. already disconnected.
@@ -414,7 +413,7 @@ public extension INDIBaseClient {
             switchProperty.reset()
             switchProperty[0].setSwitchState(.Off)
             switchProperty[1].setSwitchState(.On)
-            print("\(device.deviceName) is DISCONNECT = .On")
+
             sendNewSwitchProperty(switchProperty: switchProperty)
         }
     }
