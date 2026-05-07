@@ -64,12 +64,12 @@ public class INDISocket: @unchecked Sendable {
         guard let channel = self.channel else { return false }
         channel.close(promise: nil)
         
-        /*do {
-            try group.shutdownGracefully()
+        do {
+            try await group.shutdownGracefully()
         } catch {
             print("INDISocket.disconnectFromHost: \(error)")
             return false
-        }*/
+        }
         
         return true
     }
