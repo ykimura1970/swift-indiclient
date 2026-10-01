@@ -30,7 +30,8 @@ final class INDIWatchDeviceProperty: @unchecked Sendable {
     var isEmpty: Bool {
         get {
             self._lock.withLock({
-                self._data.isEmpty
+                print(self._data)
+                return self._data.isEmpty
             })
         }
     }
@@ -47,6 +48,14 @@ final class INDIWatchDeviceProperty: @unchecked Sendable {
         get {
             self._lock.withLock({
                 self._data.values.map({ $0 })
+            })
+        }
+    }
+    
+    var watchedDevices: Set<String> {
+        get {
+            self._lock.withLock({
+                self._watchedDevice
             })
         }
     }

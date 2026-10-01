@@ -329,8 +329,14 @@ public extension INDIBaseClient {
         var root = INDIProtocolElement(tagName: "getProperties")
         root.addAttribute(attribute: INDIProtocolElement.Attribute(key: "version", value: INDIProtocolVersion))
         
-        if self._watchDevice.isEmpty {
+        if self._watchDevice.watchedDevices.isEmpty && self._watchDevice.isEmpty {
             sendData(command: root)
+        } else if self._watchDevice.isEmpty {
+            for deviceName in self._watchDevice.watchedDevices {
+                var rootOne = root
+                rootOne.addAttribute(attribute: INDIProtocolElement.Attribute(key: "device", value: deviceName))
+                sendData(command: rootOne)
+            }
         } else {
             for deviceInfo in self._watchDevice.deviceInfos {
                 // If there are no specific properties to watch, we watch the complete device.
