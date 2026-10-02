@@ -18,9 +18,7 @@ final public class INDIBaseDevice: @unchecked Sendable {
         case WatchNewOrUpdate   // Applies when a property appears or is updated, i.e. both of the above.
     }
     
-    public enum INDIDriverInterface: Int, Sendable {
-        static let range: ClosedRange<Int> = 0...20
-        
+    public enum INDIDriverInterface: Int, CaseIterable, Sendable {
         case GeneralInterface                   = 0b000000000000000000000    // Default interface for all INDI devices.
         case TelescopeInterface                 = 0b000000000000000000001    // Telescope interface, must subclass INDI Telescope.
         case CCDInterface                       = 0b000000000000000000010    // CCD interface, must subclass INDI CCD.
